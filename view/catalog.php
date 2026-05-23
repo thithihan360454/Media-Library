@@ -1,64 +1,50 @@
-<?php require BASE_PATH . '/view/layout/header.php'; ?>
+<?php require BASE_PATH . '/view/layout/header.php';
+require_once BASE_PATH . '/view/ItemView.php';
+?>
 
 <div class="section catalog page">
-	<div class="wrapper">
+  <div class="wrapper">
 
-		<h1>
-			<?php
-			if (!empty($search)) {
-				echo 'Search results for "' . htmlspecialchars($search) . '"';
+    <h1>
+      <?php
+      $title = $pageTitle;
 
-				if (!empty($section)) {
-					echo ' in ' . ucfirst($section);
-				}
-			} else {
-				if (!empty($section)) {
-					echo "<a href='index.php?page=catalog'>Full Catalog</a> &gt; ";
-				}
+      if (!empty($search)) {
+        $title = 'Search results for "' . htmlspecialchars($search) . '"';
+      }
 
-				echo htmlspecialchars($pageTitle);
-			}
-			?>
-		</h1>
+      if (!empty($section)) {
+        $title .= ' in ' . ucfirst($section);
+      }
 
-		<?php if ($total_items < 1): ?>
+      echo $title;
+      ?>
+    </h1>
 
-			<?php if (!empty($section) && $found_in_full_catalog > 0): ?>
+    <?php if (empty($catalog)): ?>
 
-				<p>You are searching in the wrong section. Please check again.</p>
+      <p>No items were found matching that search term.</p>
 
-				<p>
-					<a href="index.php?page=catalog&s=<?= urlencode($search) ?>">
-						Search in the Full Catalog
-					</a>
-				</p>
+      <p>
+        Search again or
+        <a href="index.php?page=catalog">Browse the Full Catalog.</a>
+      </p>
 
-			<?php else: ?>
+    <?php else: ?>
 
-				<p>No items were found matching that search term.</p>
+      <?php require BASE_PATH . '/view/partials/pagination.php'; ?>
 
-				<p>
-					Search again or
-					<a href="index.php?page=catalog">Browse the Full Catalog.</a>
-				</p>
+      <ul class="catalog">
+        <?php foreach ($catalog as $item): ?>
+          <?= ItemView::render($item); ?>
+        <?php endforeach; ?>
+      </ul>
 
-			<?php endif; ?>
+      <?php require BASE_PATH . '/view/partials/pagination.php'; ?>
 
-		<?php else: ?>
+    <?php endif; ?>
 
-			<?php require BASE_PATH . '/view/partials/pagination.php'; ?>
-
-			<ul class="catalog">
-				<?php foreach ($catalog as $item): ?>
-					<?= ItemView::render($item); ?>
-				<?php endforeach; ?>
-			</ul>
-
-			<?php require BASE_PATH . '/view/partials/pagination.php'; ?>
-
-		<?php endif; ?>
-
-	</div>
+  </div>
 </div>
 
 <?php require BASE_PATH . '/view/layout/footer.php'; ?>

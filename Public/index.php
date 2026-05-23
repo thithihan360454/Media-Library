@@ -1,31 +1,53 @@
-
 <?php
+
+use Dotenv\Dotenv;
+use App\Repositories\CatalogRepository;
+use App\Repositories\FormatRepository;
+
+use App\Services\CatalogService;
+use App\Services\FormatService;
+
+use App\Controllers\CatalogController;
+use App\Controllers\DetailsController;
+use App\Controllers\SuggestController;
+
+use App\Controllers\Api\CatalogApiController;
+use App\Controllers\Api\DetailsApiController;
+use App\Controllers\Api\SuggestApiController;
+use App\Core\Database;
+
+
+
 /**
  * Main application entry point.
- * Initializes dependencies, services, and application routing.
+ * Front Controller (All requests come here)
  */
-/*
-//Report simple running errors
+
 error_reporting(E_ALL);
-//Make sure they are on screen
-ini_set('display_errors',1);
-//HTML formatted errors
-ini_set('html_errors',1);
-        OR
-use @ in front of error
-*/
+ini_set('display_errors', 1);
+ini_set('html_errors', 1);
+
 define('BASE_PATH', dirname(__DIR__));
 
 require_once BASE_PATH . '/vendor/autoload.php';
-require_once BASE_PATH . '/inc/Database.php';
+require_once BASE_PATH . '/App/Core/Database.php';
 require_once BASE_PATH . '/inc/CustomPath.php';
 
-use Dotenv\Dotenv;
+
+/*
+|--------------------------------------------------------------------------
+| ENVIRONMENT
+|--------------------------------------------------------------------------
+*/
+
 $dotenv = Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
 
-/*BUILD SHARED OBJECTS*/
-
+/*
+|--------------------------------------------------------------------------
+| SHARED DEPENDENCIES
+|--------------------------------------------------------------------------
+*/
 $db = Database::getConnection();
 
 /* Repositories */
@@ -36,11 +58,30 @@ $formatRepo  = new FormatRepository($db);
 $catalogService = new CatalogService($catalogRepo);
 $formatService  = new FormatService($formatRepo);
 
-/*ROUTING */
-
+/*
+|--------------------------------------------------------------------------
+| ROUTING
+|--------------------------------------------------------------------------
+*/
 $page = $_GET['page'] ?? 'home';
 
 switch ($page) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | WEB ROUTES (HTML VIEWS)
+    |--------------------------------------------------------------------------
+    */
+
+    case 'home':
+        $controller = new CatalogController($catalogService);
+        $controller->home();
+        break;
+
+    case 'catalog':
+        $controller = new CatalogController($catalogService);
+        $controller->index();
+        break;
 
     case 'details':
         $controller = new DetailsController($catalogService);
@@ -52,13 +93,40 @@ switch ($page) {
         $controller->index();
         break;
 
-    case 'catalog':
-        $controller = new CatalogController($catalogService);
+
+    /*
+    |--------------------------------------------------------------------------
+    | API ROUTES (POSTMAN TESTING - JSON RESPONSE)
+    |--------------------------------------------------------------------------
+    */
+
+    case 'api-catalog':
+        require_once BASE_PATH . '/App/Controllers/Api/CatalogApiController.php';
+        $controller = new CatalogApiController($catalogService);
         $controller->index();
         break;
 
-    default: // HOME PAGE
+    case 'api-details':
+        require_once BASE_PATH . '/App/Controllers/Api/DetailsApiController.php';
+        $controller = new DetailsApiController($catalogService);
+        $controller->show();
+        break;
+
+    case 'api-suggest':
+        require_once BASE_PATH . '/App/Controllers/Api/SuggestApiController.php';
+        $controller = new SuggestApiController($formatService);
+        $controller->store();
+        break;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DEFAULT ROUTE
+    |--------------------------------------------------------------------------
+    */
+
+    default:
         $controller = new CatalogController($catalogService);
         $controller->home();
+        break;
 }
-

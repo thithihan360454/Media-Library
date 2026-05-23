@@ -1,9 +1,9 @@
-<?php if ($total_pages > 1): ?>
+<?php if ($totalPages > 1): ?>
 <div class="pagination">
     Pages:
-    <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
 
-        <?php if ($i == $current_page): ?>
+        <?php if ($i == $currentPage): ?>
             <span><?= $i ?></span>
         <?php else: ?>
             <?php
