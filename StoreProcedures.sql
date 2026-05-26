@@ -19,19 +19,19 @@ JOIN Media_Types mt
 
 
 
--- =========================================
--- VIEW: RANDOM
--- =========================================
+-- -- =========================================
+-- -- VIEW: RANDOM
+-- -- =========================================
 
-CREATE OR REPLACE VIEW view_random AS
-SELECT
-    media_id,
-    title,
-    category,
-    img
-FROM view_catalog
-ORDER BY RAND()
-LIMIT 4;
+-- CREATE OR REPLACE VIEW view_random AS
+-- SELECT
+--     media_id,
+--     title,
+--     category,
+--     img
+-- FROM view_catalog
+-- ORDER BY RAND()
+-- LIMIT 4;
 
 
 
@@ -253,8 +253,6 @@ END$$
 
 DELIMITER ;
 
-
-
 -- =========================================
 -- PROCEDURE: GET ITEM FULL DETAIL
 -- =========================================
@@ -344,3 +342,167 @@ ON People(fullname);
 
 CREATE INDEX idx_media_types_category
 ON Media_Types(category);
+
+-- =========================================
+-- PROCEDURE: GET RANDOM CATALOG
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_get_random_catalog;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_random_catalog()
+BEGIN
+    SELECT
+        media_id,
+        title,
+        category,
+        img
+    FROM view_catalog
+    ORDER BY RAND()
+    LIMIT 4;
+END$$
+
+DELIMITER ;
+
+-- =========================================
+-- PROCEDURE: GET ALL USERS
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_get_users;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_users (
+    IN p_limit INT,
+    IN p_offset INT
+)
+BEGIN
+    SELECT
+        user_id,
+        username,
+        email,
+        password
+    FROM users
+    LIMIT p_limit OFFSET p_offset;
+END$$
+
+DELIMITER ;
+
+-- =========================================
+-- PROCEDURE: GET USER BY ID
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_get_user_by_id;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_user_by_id (
+    IN p_user_id INT
+)
+BEGIN
+    SELECT
+        user_id,
+        username,
+        email,
+        password
+    FROM users
+    WHERE user_id = p_user_id
+    LIMIT 1;
+END$$
+
+DELIMITER ;
+
+-- =========================================
+-- PROCEDURE: FIND USER BY EMAIL
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_find_user_by_email;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_find_user_by_email (
+    IN p_email VARCHAR(255)
+)
+BEGIN
+    SELECT
+        user_id,
+        username,
+        email,
+        password
+    FROM users
+    WHERE LOWER(email) = LOWER(TRIM(p_email))
+    LIMIT 1;
+END$$
+
+DELIMITER ;
+
+-- =========================================
+-- PROCEDURE: CREATE USER
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_create_user;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_create_user (
+    IN p_username VARCHAR(100),
+    IN p_email VARCHAR(255),
+    IN p_password VARCHAR(255)
+)
+BEGIN
+    INSERT INTO users (
+        username,
+        email,
+        password
+    )
+    VALUES (
+        p_username,
+        p_email,
+        p_password
+    );
+END$$
+
+DELIMITER ;
+
+-- =========================================
+-- PROCEDURE: UPDATE USER
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_update_user;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_update_user (
+    IN p_user_id INT,
+    IN p_username VARCHAR(100),
+    IN p_email VARCHAR(255)
+)
+BEGIN
+    UPDATE users
+    SET
+        username = p_username,
+        email = p_email
+    WHERE user_id = p_user_id;
+END$$
+
+DELIMITER ;
+
+-- =========================================
+-- PROCEDURE: DELETE USER
+-- =========================================
+
+DROP PROCEDURE IF EXISTS sp_delete_user;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_delete_user (
+    IN p_user_id INT
+)
+BEGIN
+    DELETE FROM users
+    WHERE user_id = p_user_id;
+END$$
+
+DELIMITER ;
+

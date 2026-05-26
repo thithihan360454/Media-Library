@@ -3,90 +3,151 @@
 namespace App\Repositories;
 
 use PDO;
-use App\Interfaces\BaseInterface;
+use App\Interfaces\BaseRepositoryInterface;
 
-abstract class BaseRepository implements BaseInterface
+class BaseRepository implements BaseRepositoryInterface
 {
     protected PDO $db;
+
+    protected string $table;
+
+    protected string $primaryKey = 'id';
+
+    protected array $columns = [];
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
     }
 
-    public function count(
-        array $filters = []
-    ): int {
+    // =====================================
+    // BUILD COLUMN LIST
+    // =====================================
 
-        $search = $filters['search'] ?? null;
-        $category = $filters['category'] ?? null;
-
-        $result = $this->db->prepare(
-            "CALL sp_search_catalog_count(
-                :search,
-                :category
-            )"
-        );
-
-        $result->bindValue(
-            ':search',
-            $search,
-            $search === null
-                ? PDO::PARAM_NULL
-                : PDO::PARAM_STR
-        );
-
-        $result->bindValue(
-            ':category',
-            $category,
-            $category === null
-                ? PDO::PARAM_NULL
-                : PDO::PARAM_STR
-        );
-
-        $result->execute();
-
-        $count = $result->fetchColumn();
-
-        $result->nextRowset();
-        $result->closeCursor();
-
-        return (int) $count;
+    protected function getColumnList(): string
+    {
+        return implode(', ', $this->columns);
     }
+
+    // =====================================
+    // GET ALL
+    // =====================================
 
     public function getAll(
         ?int $limit = null,
         int $offset = 0
     ): array {
 
-        $result = $this->db->prepare(
-            "CALL sp_get_full_catalog(?, ?)"
-        );
+        $columns = $this->getColumnList();
 
-        $result->bindParam(
-            1,
-            $limit,
-            $limit === null
-                ? PDO::PARAM_NULL
-                : PDO::PARAM_INT
-        );
+        $sql = "
+            SELECT {$columns}
+            FROM {$this->table}
+        ";
 
-        $result->bindParam(
-            2,
-            $offset,
-            PDO::PARAM_INT
-        );
+        if ($limit !== null) {
 
-        $result->execute();
+            $sql .= "
+                LIMIT :limit
+                OFFSET :offset
+            ";
+        }
 
-        $catalog = $result->fetchAll();
+        $stmt = $this->db->prepare($sql);
 
-        $result->closeCursor();
+        if ($limit !== null) {
 
-        return $catalog;
+            $stmt->bindValue(
+                ':limit',
+                $limit,
+                PDO::PARAM_INT
+            );
+
+            $stmt->bindValue(
+                ':offset',
+                $offset,
+                PDO::PARAM_INT
+            );
+        }
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    abstract public function getById(
+    // =====================================
+    // GET BY ID
+    // =====================================
+
+    public function getById(
         int $id
-    ): ?array;
+    ): mixed {
+
+        $columns = $this->getColumnList();
+
+        $sql = "
+            SELECT {$columns}
+            FROM {$this->table}
+            WHERE {$this->primaryKey} = :id
+            LIMIT 1
+        ";
+
+        $stmt = $this->db->prepare($sql);
+
+        $stmt->execute([
+            ':id' => $id
+        ]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // ===== QUERY HELPERS =====
+    protected function query(string $sql, array $params = []): \PDOStatement
+    {
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt;
+    }
+
+    protected function fetchOne(
+        string $sql,
+        array $params = []
+    ): ?array {
+
+        $stmt = $this->query($sql, $params);
+
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $stmt->closeCursor();
+
+        return $result ?: null;
+    }
+
+    protected function fetchAll(
+        string $sql,
+        array $params = []
+    ): array {
+
+        $stmt = $this->query($sql, $params);
+
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmt->closeCursor();
+
+        return $results;
+    }
+
+    protected function execute(
+        string $sql,
+        array $params = []
+    ): bool {
+
+        $stmt = $this->db->prepare($sql);
+
+        $success = $stmt->execute($params);
+
+        $stmt->closeCursor();
+
+        return $success;
+    }
 }

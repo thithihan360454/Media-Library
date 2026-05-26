@@ -2,12 +2,8 @@
 
 namespace App\Interfaces;
 
-interface BaseInterface
+interface BaseRepositoryInterface
 {
-    public function count(
-        array $filters = []
-    ): int;
-
     public function getAll(
         ?int $limit = null,
         int $offset = 0
@@ -15,5 +11,5 @@ interface BaseInterface
 
     public function getById(
         int $id
-    ): ?array;
+    ): mixed;
 }

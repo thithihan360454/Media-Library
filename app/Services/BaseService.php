@@ -2,19 +2,14 @@
 
 namespace App\Services;
 
-/**
- * Common service logic
- */
 abstract class BaseService
 {
-    /**
-     * Pagination helper
-     */
     protected function buildPagination(
         int $totalItems,
         int $currentPage,
         int $itemsPerPage = 8
     ): array {
+
         $totalPages = max(
             1,
             (int) ceil($totalItems / $itemsPerPage)
@@ -34,11 +29,10 @@ abstract class BaseService
         ];
     }
 
-    /**
-     * Validate current page
-     */
-    protected function getCurrentPage(array $params): int
-    {
+    protected function getCurrentPage(
+        array $params
+    ): int {
+
         $page = filter_var(
             $params['pg'] ?? 1,
             FILTER_VALIDATE_INT
@@ -49,13 +43,11 @@ abstract class BaseService
             : $page;
     }
 
-    /**
-     * Build query string
-     */
     protected function buildQueryString(
         ?string $section,
         ?string $search
     ): string {
+
         $params = [];
 
         if ($section !== null) {

@@ -1,121 +1,222 @@
 <?php
 
 use Dotenv\Dotenv;
+
+use App\Core\Database;
+
 use App\Repositories\CatalogRepository;
 use App\Repositories\FormatRepository;
+use App\Repositories\UserRepository;
 
 use App\Services\CatalogService;
 use App\Services\FormatService;
+use App\Services\UserService;
+use App\Services\ValidatorService;
 
 use App\Controllers\CatalogController;
 use App\Controllers\DetailsController;
 use App\Controllers\SuggestController;
+use App\Controllers\AuthController;
 
 use App\Controllers\Api\CatalogApiController;
 use App\Controllers\Api\DetailsApiController;
 use App\Controllers\Api\SuggestApiController;
-use App\Core\Database;
+use App\Controllers\Api\AuthApiController;
 
-
-
-/**
- * Main application entry point.
- * Front Controller (All requests come here)
- */
+/*
+|--------------------------------------------------------------------------
+| ERROR REPORTING
+|--------------------------------------------------------------------------
+*/
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('html_errors', 1);
 
+/*
+|--------------------------------------------------------------------------
+| SESSION START (CRITICAL)
+|--------------------------------------------------------------------------
+*/
+session_start();
+
+/*
+|--------------------------------------------------------------------------
+| BASE PATH
+|--------------------------------------------------------------------------
+*/
 define('BASE_PATH', dirname(__DIR__));
 
 require_once BASE_PATH . '/vendor/autoload.php';
 require_once BASE_PATH . '/App/Core/Database.php';
 require_once BASE_PATH . '/inc/CustomPath.php';
 
-
 /*
 |--------------------------------------------------------------------------
 | ENVIRONMENT
 |--------------------------------------------------------------------------
 */
-
-$dotenv = Dotenv::createImmutable(dirname(__DIR__));
+$dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
 
 /*
 |--------------------------------------------------------------------------
-| SHARED DEPENDENCIES
+| DATABASE
 |--------------------------------------------------------------------------
 */
 $db = Database::getConnection();
 
-/* Repositories */
+/*
+|--------------------------------------------------------------------------
+| REPOSITORIES
+|--------------------------------------------------------------------------
+*/
 $catalogRepo = new CatalogRepository($db);
 $formatRepo  = new FormatRepository($db);
-
-/* Services */
-$catalogService = new CatalogService($catalogRepo);
-$formatService  = new FormatService($formatRepo);
+$userRepo    = new UserRepository($db);
 
 /*
 |--------------------------------------------------------------------------
-| ROUTING
+| SERVICES
+|--------------------------------------------------------------------------
+*/
+$catalogService = new CatalogService($catalogRepo);
+$formatService  = new FormatService($formatRepo);
+// $userService    = new UserService($userRepo);
+$validator = new ValidatorService();
+
+$userService = new UserService(
+    $userRepo,
+    $validator
+);
+
+/*
+|--------------------------------------------------------------------------
+| CONTROLLERS (CREATE ONCE ONLY)
+|--------------------------------------------------------------------------
+*/
+$catalogController = new CatalogController($catalogService);
+$detailsController = new DetailsController($catalogService);
+$suggestController = new SuggestController($formatService);
+$authController    = new AuthController($userService);
+
+/*
+|--------------------------------------------------------------------------
+| API CONTROLLERS (CREATE ONCE ONLY)
+|--------------------------------------------------------------------------
+*/
+
+$authApiController = new AuthApiController($userService);
+
+/*
+|--------------------------------------------------------------------------
+| ROUTER
 |--------------------------------------------------------------------------
 */
 $page = $_GET['page'] ?? 'home';
 
+
+/*
+|----------------------------------------------------------------
+| AUTH PROTECTION (PUT HERE)
+|----------------------------------------------------------------
+*/
+/*
+|--------------------------------------------------------------------------
+| AUTH MIDDLEWARE (FIXED)
+|--------------------------------------------------------------------------
+*/
+$protectedPages = ['home', 'catalog', 'details', 'suggest'];
+
+if (
+    in_array($page, $protectedPages) &&
+    !isset($_SESSION['user_id'])
+) {
+    $_SESSION['auth_error'] = "Please login first!";
+
+    header("Location: index.php?page=login");
+    exit;
+}
+
 switch ($page) {
+
 
     /*
     |--------------------------------------------------------------------------
-    | WEB ROUTES (HTML VIEWS)
+    | WEB ROUTES
     |--------------------------------------------------------------------------
     */
-
     case 'home':
-        $controller = new CatalogController($catalogService);
-        $controller->home();
+        $catalogController->home();
         break;
 
     case 'catalog':
-        $controller = new CatalogController($catalogService);
-        $controller->index();
+        $catalogController->index();
         break;
 
     case 'details':
-        $controller = new DetailsController($catalogService);
-        $controller->show();
+        $detailsController->show();
         break;
 
     case 'suggest':
-        $controller = new SuggestController($formatService);
-        $controller->index();
+        $suggestController->index();
         break;
-
 
     /*
     |--------------------------------------------------------------------------
-    | API ROUTES (POSTMAN TESTING - JSON RESPONSE)
+    | AUTH ROUTES
     |--------------------------------------------------------------------------
     */
+    case 'register':
+        $authController->showRegister();
+        break;
 
+    case 'register-submit':
+        $authController->register();
+        break;
+
+    case 'login':
+        $authController->showLogin();
+        break;
+
+    case 'login-submit':
+        $authController->login();
+        break;
+
+    case 'logout':
+        $authController->logout();
+        break;
+
+    /*
+    |--------------------------------------------------------------------------
+    | API ROUTES
+    |--------------------------------------------------------------------------
+    */
     case 'api-catalog':
-        require_once BASE_PATH . '/App/Controllers/Api/CatalogApiController.php';
         $controller = new CatalogApiController($catalogService);
         $controller->index();
         break;
 
     case 'api-details':
-        require_once BASE_PATH . '/App/Controllers/Api/DetailsApiController.php';
         $controller = new DetailsApiController($catalogService);
         $controller->show();
         break;
 
     case 'api-suggest':
-        require_once BASE_PATH . '/App/Controllers/Api/SuggestApiController.php';
         $controller = new SuggestApiController($formatService);
         $controller->store();
+        break;
+
+    case 'api-register':
+        $authApiController->register();
+        break;
+
+    case 'api-login':
+        $authApiController->login();
+        break;
+
+    case 'api-logout':
+        $authApiController->logout();
         break;
 
 
@@ -124,9 +225,7 @@ switch ($page) {
     | DEFAULT ROUTE
     |--------------------------------------------------------------------------
     */
-
     default:
-        $controller = new CatalogController($catalogService);
-        $controller->home();
+        $catalogController->home();
         break;
 }

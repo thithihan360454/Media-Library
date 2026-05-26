@@ -10,7 +10,7 @@ use App\Services\CatalogService;
  * Only handles HTTP request → passes to service → loads view
  */
 
-class CatalogController
+class CatalogController extends BaseController
 {
     private CatalogService $catalogService;
 
@@ -24,6 +24,7 @@ class CatalogController
      */
     public function home(): void
     {
+        $this->requireLogin();
         $data = $this->catalogService->getHomePageData();
 
         // Extract variables for view
@@ -37,6 +38,7 @@ class CatalogController
      */
     public function index(): void
     {
+        $this->requireLogin();
         $data = $this->catalogService->getCatalogPage($_GET);
 
         // Make variables available in view

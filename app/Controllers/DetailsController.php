@@ -9,7 +9,7 @@ use App\Services\CatalogService;
  * for a single catalog item.
  */
 
-class DetailsController
+class DetailsController extends BaseController
 {
     private CatalogService $catalogService;
 
@@ -22,6 +22,7 @@ class DetailsController
     // Show item details page
     public function show()
     {
+        $this->requireLogin();
         // Validate item ID from URL
         $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
