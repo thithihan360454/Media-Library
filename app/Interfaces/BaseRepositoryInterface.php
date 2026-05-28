@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Interfaces;
 
 interface BaseRepositoryInterface
@@ -12,4 +14,17 @@ interface BaseRepositoryInterface
     public function getById(
         int $id
     ): mixed;
+
+    public function create(
+        mixed $entity
+    ): bool;
+
+    public function update(
+        int $id,
+        mixed $entity
+    ): bool;
+
+    public function delete(
+        int $id
+    ): bool;
 }

@@ -66,14 +66,13 @@ class UserService extends BaseService
         | CREATE USER ENTITY (ENCAPSULATION SAFE)
         |--------------------------------------------------------------------------
         */
-        $user = new User();
-
-        $user->setUsername($data['username']);
-
-        $user->setEmail($data['email']);
-
-        $user->setPassword(
-            password_hash($data['password'], PASSWORD_DEFAULT)
+        $user = new User(
+            $data['username'],
+            $data['email'],
+            password_hash(
+                $data['password'],
+                PASSWORD_DEFAULT
+            )
         );
 
         /*

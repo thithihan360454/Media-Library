@@ -20,18 +20,16 @@ class BaseRepository implements BaseRepositoryInterface
         $this->db = $db;
     }
 
-    // =====================================
-    // BUILD COLUMN LIST
-    // =====================================
-
     protected function getColumnList(): string
     {
         return implode(', ', $this->columns);
     }
 
-    // =====================================
-    // GET ALL
-    // =====================================
+    /*
+    |--------------------------------------------------------------------------
+    | GET ALL
+    |--------------------------------------------------------------------------
+    */
 
     public function getAll(
         ?int $limit = null,
@@ -46,7 +44,6 @@ class BaseRepository implements BaseRepositoryInterface
         ";
 
         if ($limit !== null) {
-
             $sql .= "
                 LIMIT :limit
                 OFFSET :offset
@@ -75,37 +72,146 @@ class BaseRepository implements BaseRepositoryInterface
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // =====================================
-    // GET BY ID
-    // =====================================
+    /*
+    |--------------------------------------------------------------------------
+    | GET BY ID
+    |--------------------------------------------------------------------------
+    */
 
-    public function getById(
-        int $id
-    ): mixed {
+    public function getById(int $id): ?array
+    {
+        $stmt = $this->db->prepare("CALL sp_get_item_full_detail(?)");
+        $stmt->bindValue(1, $id, PDO::PARAM_INT);
+        $stmt->execute();
 
-        $columns = $this->getColumnList();
+        // MAIN ITEM
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $sql = "
-            SELECT {$columns}
-            FROM {$this->table}
-            WHERE {$this->primaryKey} = :id
-            LIMIT 1
-        ";
+        if (!$item) {
+            $stmt->closeCursor();
+            return null;
+        }
 
-        $stmt = $this->db->prepare($sql);
+        // MOVE TO NEXT RESULT SET
+        $stmt->nextRowset();
 
-        $stmt->execute([
-            ':id' => $id
-        ]);
+        // MULTI VALUE FIELDS
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $role = strtolower(trim($row['role']));
 
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($role === 'direct') {
+                $role = 'director';
+            }
+            $item[$role][] = $row['fullname'];
+        }
+
+        $stmt->closeCursor();
+
+        return $item;
     }
 
-    // ===== QUERY HELPERS =====
-    protected function query(string $sql, array $params = []): \PDOStatement
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE
+    |--------------------------------------------------------------------------
+    */
+
+    public function create(
+        mixed $data
+    ): bool {
+
+        $fields = array_keys((array) $data);
+
+        $columns = implode(', ', $fields);
+
+        $placeholders = implode(
+            ', ',
+            array_map(
+                fn($field) => ':' . $field,
+                $fields
+            )
+        );
+
+        $sql = "
+            INSERT INTO {$this->table}
+            ({$columns})
+            VALUES ({$placeholders})
+        ";
+
+        return $this->execute(
+            $sql,
+            (array) $data
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE
+    |--------------------------------------------------------------------------
+    */
+
+    public function update(
+        int $id,
+        mixed $data
+    ): bool {
+
+        $fields = array_keys((array) $data);
+
+        $setClause = implode(
+            ', ',
+            array_map(
+                fn($field) => "{$field} = :{$field}",
+                $fields
+            )
+        );
+
+        $sql = "
+            UPDATE {$this->table}
+            SET {$setClause}
+            WHERE {$this->primaryKey} = :id
+        ";
+
+        $params = (array) $data;
+        $params['id'] = $id;
+
+        return $this->execute($sql, $params);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE
+    |--------------------------------------------------------------------------
+    */
+
+    public function delete(
+        int $id
+    ): bool {
+
+        $sql = "
+            DELETE FROM {$this->table}
+            WHERE {$this->primaryKey} = :id
+        ";
+
+        return $this->execute($sql, [
+            ':id' => $id
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    protected function query(
+        string $sql,
+        array $params = []
+    ): \PDOStatement {
+
         $stmt = $this->db->prepare($sql);
+
         $stmt->execute($params);
+
         return $stmt;
     }
 

@@ -11,124 +11,16 @@ class UserRepository
 extends BaseRepository
 implements UserRepositoryInterface
 {
-    /*
-    |--------------------------------------------------------------------------
-    | GET ALL USERS
-    |--------------------------------------------------------------------------
-    */
+    protected string $table = 'users';
 
-    public function getAll(
-        ?int $limit = null,
-        int $offset = 0
-    ): array {
+    protected string $primaryKey = 'user_id';
 
-        $results = $this->fetchAll(
-            "CALL sp_get_users(:limit, :offset)",
-            [
-                ':limit' => $limit,
-                ':offset' => $offset
-            ]
-        );
-
-        $users = [];
-
-        foreach ($results as $row) {
-            $users[] = $this->mapUser($row);
-        }
-
-        return $users;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | GET USER BY ID
-    |--------------------------------------------------------------------------
-    */
-
-    public function getById(
-        int $id
-    ): ?User {
-
-        $data = $this->fetchOne(
-            "CALL sp_get_user_by_id(:id)",
-            [
-                ':id' => $id
-            ]
-        );
-
-        if (!$data) {
-            return null;
-        }
-
-        return $this->mapUser($data);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE USER
-    |--------------------------------------------------------------------------
-    */
-
-    public function create(
-        User $user
-    ): bool {
-
-        return $this->execute(
-            "CALL sp_create_user(
-                :username,
-                :email,
-                :password
-            )",
-            [
-                ':username' => $user->getUsername(),
-                ':email' => $user->getEmail(),
-                ':password' => $user->getPassword()
-            ]
-        );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE USER
-    |--------------------------------------------------------------------------
-    */
-
-    public function update(
-        int $id,
-        User $user
-    ): bool {
-
-        return $this->execute(
-            "CALL sp_update_user(
-                :id,
-                :username,
-                :email
-            )",
-            [
-                ':id' => $id,
-                ':username' => $user->getUsername(),
-                ':email' => $user->getEmail()
-            ]
-        );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | DELETE USER
-    |--------------------------------------------------------------------------
-    */
-
-    public function delete(
-        int $id
-    ): bool {
-
-        return $this->execute(
-            "CALL sp_delete_user(:id)",
-            [
-                ':id' => $id
-            ]
-        );
-    }
+    protected array $columns = [
+        'user_id',
+        'username',
+        'email',
+        'password'
+    ];
 
     /*
     |--------------------------------------------------------------------------
@@ -140,12 +32,16 @@ implements UserRepositoryInterface
         string $email
     ): ?User {
 
-        $data = $this->fetchOne(
-            "CALL sp_find_user_by_email(:email)",
-            [
-                ':email' => $email
-            ]
-        );
+        $sql = "
+            SELECT {$this->getColumnList()}
+            FROM {$this->table}
+            WHERE email = :email
+            LIMIT 1
+        ";
+
+        $data = $this->fetchOne($sql, [
+            ':email' => $email
+        ]);
 
         if (!$data) {
             return null;
@@ -153,6 +49,7 @@ implements UserRepositoryInterface
 
         return $this->mapUser($data);
     }
+
 
     /*
     |--------------------------------------------------------------------------
