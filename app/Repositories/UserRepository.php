@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use PDO;
 use App\Models\User;
 use App\Interfaces\UserRepositoryInterface;
 
@@ -12,19 +11,39 @@ class UserRepository
 extends BaseRepository
 implements UserRepositoryInterface
 {
+    /*
+    |--------------------------------------------------------------------------
+    | GET ALL USERS
+    |--------------------------------------------------------------------------
+    */
+
     public function getAll(
         ?int $limit = null,
         int $offset = 0
     ): array {
 
-        return $this->fetchAll(
+        $results = $this->fetchAll(
             "CALL sp_get_users(:limit, :offset)",
             [
                 ':limit' => $limit,
                 ':offset' => $offset
             ]
         );
+
+        $users = [];
+
+        foreach ($results as $row) {
+            $users[] = $this->mapUser($row);
+        }
+
+        return $users;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET USER BY ID
+    |--------------------------------------------------------------------------
+    */
 
     public function getById(
         int $id
@@ -44,42 +63,60 @@ implements UserRepositoryInterface
         return $this->mapUser($data);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE USER
+    |--------------------------------------------------------------------------
+    */
+
     public function create(
-        mixed $data
+        User $user
     ): bool {
 
         return $this->execute(
             "CALL sp_create_user(
-            :username,
-            :email,
-            :password
-        )",
+                :username,
+                :email,
+                :password
+            )",
             [
-                ':username' => $data->username,
-                ':email' => $data->email,
-                ':password' => $data->password
+                ':username' => $user->getUsername(),
+                ':email' => $user->getEmail(),
+                ':password' => $user->getPassword()
             ]
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE USER
+    |--------------------------------------------------------------------------
+    */
+
     public function update(
         int $id,
-        mixed $data
+        User $user
     ): bool {
 
         return $this->execute(
             "CALL sp_update_user(
-            :id,
-            :username,
-            :email
-        )",
+                :id,
+                :username,
+                :email
+            )",
             [
                 ':id' => $id,
-                ':username' => $data->username,
-                ':email' => $data->email
+                ':username' => $user->getUsername(),
+                ':email' => $user->getEmail()
             ]
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE USER
+    |--------------------------------------------------------------------------
+    */
 
     public function delete(
         int $id
@@ -92,6 +129,12 @@ implements UserRepositoryInterface
             ]
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | FIND USER BY EMAIL
+    |--------------------------------------------------------------------------
+    */
 
     public function findByEmail(
         string $email
@@ -111,17 +154,44 @@ implements UserRepositoryInterface
         return $this->mapUser($data);
     }
 
-    private function mapUser(
-        array $data
-    ): User {
+    /*
+    |--------------------------------------------------------------------------
+    | MAP USER
+    |--------------------------------------------------------------------------
+    */
 
-        $user = new User();
+    // private function mapUser(
+    //     array $data
+    // ): User {
 
-        $user->user_id = $data['user_id'];
-        $user->username = $data['username'];
-        $user->email = $data['email'];
-        $user->password = $data['password'];
+    //     $user = new User();
 
-        return $user;
+    //     $user->setUserId(
+    //         (int) $data['user_id']
+    //     );
+
+    //     $user->setUsername(
+    //         $data['username']
+    //     );
+
+    //     $user->setEmail(
+    //         $data['email']
+    //     );
+
+    //     $user->setPassword(
+    //         $data['password']
+    //     );
+
+    //     return $user;
+    // }
+
+    private function mapUser(array $data): User
+    {
+        return new User(
+            $data['username'],
+            $data['email'],
+            $data['password'],
+            (int) $data['user_id']
+        );
     }
 }

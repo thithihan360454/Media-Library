@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Services;
+namespace App\Validation;
 
-class ValidatorService
+class Validator
 {
     private array $errors = [];
 
@@ -14,7 +14,8 @@ class ValidatorService
         array $rules
     ): bool {
 
-        $this->errors = []; // IMPORTANT FIX
+        // Reset errors
+        $this->errors = [];
 
         foreach ($rules as $field => $fieldRules) {
 
@@ -31,9 +32,8 @@ class ValidatorService
 
                     if ($value === '') {
 
-                        $this->errors[$field]
-                            = ucfirst($field)
-                            . ' is required';
+                        $this->errors[$field] =
+                            ucfirst($field) . ' is required';
 
                         break;
                     }
@@ -44,7 +44,7 @@ class ValidatorService
                 | EMAIL
                 |--------------------------------------------------------------------------
                 */
-                if ($rule === 'email') {
+                if ($rule === 'email' && !empty($value)) {
 
                     if (
                         !filter_var(
@@ -53,8 +53,8 @@ class ValidatorService
                         )
                     ) {
 
-                        $this->errors[$field]
-                            = 'Invalid email format';
+                        $this->errors[$field] =
+                            'Invalid email format';
 
                         break;
                     }
@@ -71,8 +71,8 @@ class ValidatorService
 
                     if (strlen($value) < $min) {
 
-                        $this->errors[$field]
-                            = ucfirst($field)
+                        $this->errors[$field] =
+                            ucfirst($field)
                             . " must be at least {$min} characters";
 
                         break;
@@ -90,9 +90,45 @@ class ValidatorService
 
                     if (strlen($value) > $max) {
 
-                        $this->errors[$field]
-                            = ucfirst($field)
+                        $this->errors[$field] =
+                            ucfirst($field)
                             . " must not exceed {$max} characters";
+
+                        break;
+                    }
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | PASSWORD STRENGTH
+                |--------------------------------------------------------------------------
+                */
+                if (
+                    $rule === 'password_strength'
+                    && !empty($value)
+                ) {
+
+                    $hasUppercase =
+                        preg_match('/[A-Z]/', $value);
+
+                    $hasLowercase =
+                        preg_match('/[a-z]/', $value);
+
+                    $hasNumber =
+                        preg_match('/[0-9]/', $value);
+
+                    $hasSpecial =
+                        preg_match('/[\W_]/', $value);
+
+                    if (
+                        !$hasUppercase ||
+                        !$hasLowercase ||
+                        !$hasNumber ||
+                        !$hasSpecial
+                    ) {
+
+                        $this->errors[$field] =
+                            'Password must contain uppercase, lowercase, number and special character';
 
                         break;
                     }
@@ -104,7 +140,7 @@ class ValidatorService
     }
 
     /**
-     * Get errors
+     * Get validation errors
      */
     public function errors(): array
     {

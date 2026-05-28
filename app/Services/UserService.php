@@ -1,36 +1,45 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\User;
 use App\Interfaces\UserRepositoryInterface;
-use App\Services\ValidatorService;
+use App\Validation\Validator;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\LoginRequest;
 
 class UserService extends BaseService
 {
     private UserRepositoryInterface $userRepo;
-    private ValidatorService $validator;
+    private Validator $validator;
 
     public function __construct(
         UserRepositoryInterface $userRepo,
-        ValidatorService $validator
+        Validator $validator
     ) {
         $this->userRepo = $userRepo;
         $this->validator = $validator;
     }
 
-    /**
-     * Register User
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | REGISTER USER
+    |--------------------------------------------------------------------------
+    */
     public function register(array $data): array
     {
         /*
         |--------------------------------------------------------------------------
-        | VALIDATION (SRP kept inside ValidatorService)
+        | VALIDATION
         |--------------------------------------------------------------------------
         */
         if (
-            !$this->validator->validate($data, User::rules())
+            !$this->validator->validate(
+                $data,
+                RegisterRequest::rules()
+            )
         ) {
             return [
                 'success' => false,
@@ -40,7 +49,7 @@ class UserService extends BaseService
 
         /*
         |--------------------------------------------------------------------------
-        | BUSINESS RULE: EMAIL EXISTS
+        | CHECK EMAIL EXISTS
         |--------------------------------------------------------------------------
         */
         if ($this->userRepo->findByEmail($data['email'])) {
@@ -54,15 +63,17 @@ class UserService extends BaseService
 
         /*
         |--------------------------------------------------------------------------
-        | CREATE USER ENTITY
+        | CREATE USER ENTITY (ENCAPSULATION SAFE)
         |--------------------------------------------------------------------------
         */
         $user = new User();
-        $user->username = $data['username'];
-        $user->email = $data['email'];
-        $user->password = password_hash(
-            $data['password'],
-            PASSWORD_DEFAULT
+
+        $user->setUsername($data['username']);
+
+        $user->setEmail($data['email']);
+
+        $user->setPassword(
+            password_hash($data['password'], PASSWORD_DEFAULT)
         );
 
         /*
@@ -85,24 +96,23 @@ class UserService extends BaseService
     }
 
     /*
-|--------------------------------------------------------------------------
-| LOGIN USER
-|--------------------------------------------------------------------------
-*/
+    |--------------------------------------------------------------------------
+    | LOGIN USER
+    |--------------------------------------------------------------------------
+    */
     public function login(array $data): array
     {
         /*
-    |--------------------------------------------------------------------------
-    | VALIDATE LOGIN DATA
-    |--------------------------------------------------------------------------
-    */
-        $isValid = $this->validator->validate(
-            $data,
-            User::loginRules()
-        );
-
-        if (!$isValid) {
-
+        |--------------------------------------------------------------------------
+        | VALIDATION
+        |--------------------------------------------------------------------------
+        */
+        if (
+            !$this->validator->validate(
+                $data,
+                LoginRequest::rules()
+            )
+        ) {
             return [
                 'success' => false,
                 'errors' => $this->validator->errors()
@@ -110,15 +120,13 @@ class UserService extends BaseService
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | FIND USER BY EMAIL
-    |--------------------------------------------------------------------------
-    */
-        $user = $this->userRepo
-            ->findByEmail($data['email']);
+        |--------------------------------------------------------------------------
+        | FIND USER
+        |--------------------------------------------------------------------------
+        */
+        $user = $this->userRepo->findByEmail($data['email']);
 
         if (!$user) {
-
             return [
                 'success' => false,
                 'errors' => [
@@ -128,17 +136,16 @@ class UserService extends BaseService
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | VERIFY PASSWORD
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | VERIFY PASSWORD (ENCAPSULATION FIX)
+        |--------------------------------------------------------------------------
+        */
         if (
             !password_verify(
                 $data['password'],
-                $user->password
+                $user->getPassword()
             )
         ) {
-
             return [
                 'success' => false,
                 'errors' => [
@@ -148,10 +155,10 @@ class UserService extends BaseService
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | LOGIN SUCCESS
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | SUCCESS RESPONSE
+        |--------------------------------------------------------------------------
+        */
         return [
             'success' => true,
             'user' => $user

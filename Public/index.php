@@ -11,7 +11,6 @@ use App\Repositories\UserRepository;
 use App\Services\CatalogService;
 use App\Services\FormatService;
 use App\Services\UserService;
-use App\Services\ValidatorService;
 
 use App\Controllers\CatalogController;
 use App\Controllers\DetailsController;
@@ -22,6 +21,8 @@ use App\Controllers\Api\CatalogApiController;
 use App\Controllers\Api\DetailsApiController;
 use App\Controllers\Api\SuggestApiController;
 use App\Controllers\Api\AuthApiController;
+
+use App\Validation\Validator;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,7 +84,7 @@ $userRepo    = new UserRepository($db);
 $catalogService = new CatalogService($catalogRepo);
 $formatService  = new FormatService($formatRepo);
 // $userService    = new UserService($userRepo);
-$validator = new ValidatorService();
+$validator = new Validator();
 
 $userService = new UserService(
     $userRepo,

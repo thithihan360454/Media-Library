@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controllers;
 
 use App\Services\UserService;
@@ -8,9 +10,8 @@ class AuthController
 {
     private UserService $userService;
 
-    public function __construct(
-        UserService $userService
-    ) {
+    public function __construct(UserService $userService)
+    {
         $this->userService = $userService;
     }
 
@@ -32,7 +33,6 @@ class AuthController
     public function register(): void
     {
         $data = [
-
             'username' => trim($_POST['username'] ?? ''),
             'email'    => trim($_POST['email'] ?? ''),
             'password' => trim($_POST['password'] ?? '')
@@ -45,17 +45,13 @@ class AuthController
             $_SESSION['errors'] = $result['errors'];
             $_SESSION['old'] = $data;
 
-            header(
-                'Location: ' . BASE_URL . '/Public/index.php?page=register'
-            );
+            header('Location: ' . BASE_URL . '/Public/index.php?page=register');
             exit;
         }
 
         $_SESSION['success'] = 'Registration successful';
 
-        header(
-            'Location: ' . BASE_URL . '/Public/index.php?page=login'
-        );
+        header('Location: ' . BASE_URL . '/Public/index.php?page=login');
         exit;
     }
 
@@ -70,65 +66,44 @@ class AuthController
     }
 
     /*
-|--------------------------------------------------------------------------
-| LOGIN SUBMIT
-|--------------------------------------------------------------------------
-*/
+    |--------------------------------------------------------------------------
+    | LOGIN SUBMIT
+    |--------------------------------------------------------------------------
+    */
     public function login(): void
     {
         $data = [
-
-            'email' =>
-            trim($_POST['email'] ?? ''),
-
-            'password' =>
-            trim($_POST['password'] ?? '')
+            'email'    => trim($_POST['email'] ?? ''),
+            'password' => trim($_POST['password'] ?? '')
         ];
 
-        $result = $this->userService
-            ->login($data);
+        $result = $this->userService->login($data);
 
         /*
-    |--------------------------------------------------------------------------
-    | VALIDATION FAILED
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | VALIDATION FAILED
+        |--------------------------------------------------------------------------
+        */
         if (!$result['success']) {
 
-            $_SESSION['errors']
-                = $result['errors'];
+            $_SESSION['errors'] = $result['errors'];
+            $_SESSION['old'] = $data;
 
-            $_SESSION['old']
-                = $data;
-
-            header(
-                'Location: '
-                    . BASE_URL
-                    . '/Public/index.php?page=login'
-            );
-
+            header('Location: ' . BASE_URL . '/Public/index.php?page=login');
             exit;
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | LOGIN SUCCESS
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | LOGIN SUCCESS
+        |--------------------------------------------------------------------------
+        */
         $user = $result['user'];
 
-        $_SESSION['user_id']
-            = $user->user_id;
+        $_SESSION['user_id'] = $user->getUserId();
+        $_SESSION['username'] = $user->getUsername();
 
-        $_SESSION['username']
-            = $user->username;
-
-        header(
-            'Location: '
-                . BASE_URL
-                . '/Public/index.php?page=home'
-        );
-
+        header('Location: ' . BASE_URL . '/Public/index.php?page=home');
         exit;
     }
 
@@ -141,9 +116,7 @@ class AuthController
     {
         session_destroy();
 
-        header(
-            'Location: ' . BASE_URL . '/Public/index.php?page=login'
-        );
+        header('Location: ' . BASE_URL . '/Public/index.php?page=login');
         exit;
     }
 }
