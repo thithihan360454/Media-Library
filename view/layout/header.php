@@ -50,7 +50,7 @@
                             </a>
                         </li>
                         <!-- AUTH SECTION -->
-                        <?php if (!empty($_SESSION['user_id'])): ?>
+                        <?php if (!empty($_SESSION['userid'])): ?>
 
                             <!-- LOGGED IN USER -->
                             <li>

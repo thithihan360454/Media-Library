@@ -379,7 +379,7 @@ CREATE PROCEDURE sp_get_users (
 )
 BEGIN
     SELECT
-        user_id,
+        userid,
         username,
         email,
         password
@@ -398,16 +398,16 @@ DROP PROCEDURE IF EXISTS sp_get_user_by_id;
 DELIMITER $$
 
 CREATE PROCEDURE sp_get_user_by_id (
-    IN p_user_id INT
+    IN p_userid INT
 )
 BEGIN
     SELECT
-        user_id,
+        userid,
         username,
         email,
         password
     FROM users
-    WHERE user_id = p_user_id
+    WHERE userid = p_userid
     LIMIT 1;
 END$$
 
@@ -426,7 +426,7 @@ CREATE PROCEDURE sp_find_user_by_email (
 )
 BEGIN
     SELECT
-        user_id,
+        userid,
         username,
         email,
         password
@@ -474,7 +474,7 @@ DROP PROCEDURE IF EXISTS sp_update_user;
 DELIMITER $$
 
 CREATE PROCEDURE sp_update_user (
-    IN p_user_id INT,
+    IN p_userid INT,
     IN p_username VARCHAR(100),
     IN p_email VARCHAR(255)
 )
@@ -483,7 +483,7 @@ BEGIN
     SET
         username = p_username,
         email = p_email
-    WHERE user_id = p_user_id;
+    WHERE userid = p_userid;
 END$$
 
 DELIMITER ;
@@ -497,11 +497,11 @@ DROP PROCEDURE IF EXISTS sp_delete_user;
 DELIMITER $$
 
 CREATE PROCEDURE sp_delete_user (
-    IN p_user_id INT
+    IN p_userid INT
 )
 BEGIN
     DELETE FROM users
-    WHERE user_id = p_user_id;
+    WHERE userid = p_userid;
 END$$
 
 DELIMITER ;

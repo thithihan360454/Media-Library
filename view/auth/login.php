@@ -9,8 +9,7 @@ require BASE_PATH . '/view/Layout/header.php';
 $errors = $_SESSION['errors'] ?? [];
 $old    = $_SESSION['old'] ?? [];
 
-unset($_SESSION['errors']);
-unset($_SESSION['old']);
+unset($_SESSION['errors'], $_SESSION['old']);
 
 ?>
 
@@ -24,101 +23,58 @@ unset($_SESSION['old']);
 
             <h2>Login</h2>
 
-            <!-- SUCCESS -->
             <?php if (!empty($_SESSION['success'])): ?>
-
                 <div class="auth-message auth-success">
                     <?= htmlspecialchars($_SESSION['success']) ?>
                 </div>
-
                 <?php unset($_SESSION['success']); ?>
-
             <?php endif; ?>
 
-            <!-- AUTH ERROR -->
             <?php if (!empty($_SESSION['auth_error'])): ?>
-
                 <div class="auth-message auth-error">
                     <?= htmlspecialchars($_SESSION['auth_error']) ?>
                 </div>
-
                 <?php unset($_SESSION['auth_error']); ?>
-
             <?php endif; ?>
 
-            <form
-                method="POST"
+            <form method="POST"
                 action="<?= BASE_URL ?>/Public/index.php?page=login-submit">
 
                 <!-- EMAIL -->
                 <div class="auth-group">
-
-                    <label for="email">
-                        Email Address
-                    </label>
-
-                    <input
-                        type="text"
-                        name="email"
-                        id="email"
-                        placeholder="Enter your email"
+                    <label>Email</label>
+                    <input type="text" name="email"
                         value="<?= htmlspecialchars($old['email'] ?? '') ?>">
 
-                    <!-- EMAIL ERROR -->
                     <?php if (!empty($errors['email'])): ?>
-
-                        <small class="auth-error">
-                            <?= htmlspecialchars($errors['email']) ?>
-                        </small>
-
+                        <small class="error"><?= $errors['email'] ?></small>
                     <?php endif; ?>
-
                 </div>
 
                 <!-- PASSWORD -->
                 <div class="auth-group">
+                    <label>Password</label>
 
-                    <label for="password">
-                        Password
-                    </label>
+                    <div class="input-wrapper">
+                        <input type="password" name="password" id="login_password">
 
-                    <input
-                        type="password"
-                        name="password"
-                        id="password"
-                        placeholder="Enter your password">
+                        <span class="toggle-password" data-target="login_password">👁</span>
+                    </div>
 
-                    <!-- PASSWORD ERROR -->
                     <?php if (!empty($errors['password'])): ?>
-
-                        <small class="auth-error">
-                            <?= htmlspecialchars($errors['password']) ?>
-                        </small>
-
+                        <small class="error"><?= $errors['password'] ?></small>
                     <?php endif; ?>
-
                 </div>
 
-                <!-- BUTTON -->
-                <button
-                    type="submit"
-                    class="auth-button">
-
+                <button type="submit" class="auth-button">
                     Login
-
                 </button>
 
             </form>
 
-            <!-- REGISTER -->
             <div class="auth-footer">
-
                 Don't have an account?
-
-                <a href="<?= BASE_URL ?>/Public/index.php?page=register">
-                    Register here
-                </a>
-
+                <a href="<?= BASE_URL ?>/Public/index.php?page=register">Register</a>
             </div>
 
         </div>

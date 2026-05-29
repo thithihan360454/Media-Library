@@ -1,85 +1,36 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controllers;
 
-/**
- * Base Controller
- * Shared helper methods for all controllers
- */
-abstract class BaseController
+class BaseController
 {
-    /**
-     * Render a view file
-     */
-    protected function view(
-        string $path,
-        array $data = []
-    ): void {
-
-        extract($data);
-
-        require BASE_PATH . '/view/' . $path . '.php';
-    }
-
-    /**
-     * Redirect helper
-     */
-    protected function redirect(
-        string $url
-    ): void {
-
-        header("Location: $url");
-        exit;
-    }
-
-    /**
-     * JSON response helper (for APIs)
-     */
-    protected function json(
-        array $data,
-        int $code = 200
-    ): void {
-
-        http_response_code($code);
-
-        header('Content-Type: application/json');
-
-        echo json_encode(
-            $data,
-            JSON_PRETTY_PRINT
-        );
-
-        exit;
-    }
-
-    /**
-     * Get GET parameter safely
-     */
-    protected function get(
-        string $key,
-        $default = null
-    ) {
-
-        return $_GET[$key] ?? $default;
-    }
-
-    /**
-     * Get POST parameter safely
-     */
-    protected function post(
-        string $key,
-        $default = null
-    ) {
-
-        return $_POST[$key] ?? $default;
-    }
-
-    /**
-     * Check if user logged in
-     */
-    protected function isLoggedIn(): bool
+    protected function redirect(string $url): void
     {
-        return isset($_SESSION['user_id']);
+        header('Location: ' . $url);
+        exit;
+    }
+
+    protected function withErrors(array $errors, array $old, string $url): void
+    {
+        $_SESSION['errors'] = $errors;
+        $_SESSION['old'] = $old;
+
+        $this->redirect($url);
+    }
+
+    protected function withSuccess(string $message, string $url): void
+    {
+        $_SESSION['success'] = $message;
+
+        $this->redirect($url);
+    }
+
+    protected function loginUser(object $user): void
+    {
+        $_SESSION['userid'] = $user->userid;
+        $_SESSION['username'] = $user->username;
     }
 
     /**
@@ -87,7 +38,7 @@ abstract class BaseController
      */
     protected function requireLogin(): void
     {
-        if (!isset($_SESSION['user_id'])) {
+        if (!isset($_SESSION['userid'])) {
 
             $_SESSION['auth_error'] = 'Please login first!';
 

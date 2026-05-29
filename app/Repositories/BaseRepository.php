@@ -2,74 +2,41 @@
 
 namespace App\Repositories;
 
-use PDO;
 use App\Interfaces\BaseRepositoryInterface;
+use PDO;
 
 class BaseRepository implements BaseRepositoryInterface
 {
     protected PDO $db;
-
-    protected string $table;
-
-    protected string $primaryKey = 'id';
-
-    protected array $columns = [];
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
     }
 
-    protected function getColumnList(): string
-    {
-        return implode(', ', $this->columns);
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | STORED PROCEDURES (DEFINED IN CHILD)
+    |--------------------------------------------------------------------------
+    */
+    protected string $spGetAll = '';
+    protected string $spGetById = '';
+    protected string $spCreate = '';
+    protected string $spUpdate = '';
+    protected string $spDelete = '';
+
+    protected bool $hasMultiRowset = false;
 
     /*
     |--------------------------------------------------------------------------
     | GET ALL
     |--------------------------------------------------------------------------
     */
+    public function getAll(int $limit = 10, int $offset = 0): array
+    {
+        $this->guard($this->spGetAll);
 
-    public function getAll(
-        ?int $limit = null,
-        int $offset = 0
-    ): array {
-
-        $columns = $this->getColumnList();
-
-        $sql = "
-            SELECT {$columns}
-            FROM {$this->table}
-        ";
-
-        if ($limit !== null) {
-            $sql .= "
-                LIMIT :limit
-                OFFSET :offset
-            ";
-        }
-
-        $stmt = $this->db->prepare($sql);
-
-        if ($limit !== null) {
-
-            $stmt->bindValue(
-                ':limit',
-                $limit,
-                PDO::PARAM_INT
-            );
-
-            $stmt->bindValue(
-                ':offset',
-                $offset,
-                PDO::PARAM_INT
-            );
-        }
-
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->fetchAllSP($this->spGetAll, [$limit, $offset]);
     }
 
     /*
@@ -77,14 +44,21 @@ class BaseRepository implements BaseRepositoryInterface
     | GET BY ID
     |--------------------------------------------------------------------------
     */
-
     public function getById(int $id): ?array
     {
-        $stmt = $this->db->prepare("CALL sp_get_item_full_detail(?)");
-        $stmt->bindValue(1, $id, PDO::PARAM_INT);
-        $stmt->execute();
+        $this->guard($this->spGetById);
 
-        // MAIN ITEM
+        $stmt = $this->db->prepare(
+            "CALL {$this->spGetById}(?)"
+        );
+
+        $stmt->execute([$id]);
+
+        /*
+    |--------------------------------------------------------------------------
+    | FIRST RESULT SET
+    |--------------------------------------------------------------------------
+    */
         $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$item) {
@@ -92,17 +66,30 @@ class BaseRepository implements BaseRepositoryInterface
             return null;
         }
 
-        // MOVE TO NEXT RESULT SET
-        $stmt->nextRowset();
+        /*
+    |--------------------------------------------------------------------------
+    | MULTI RESULT SET SUPPORT
+    |--------------------------------------------------------------------------
+    */
+        if ($this->hasMultiRowset) {
 
-        // MULTI VALUE FIELDS
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $role = strtolower(trim($row['role']));
+            $stmt->nextRowset();
 
-            if ($role === 'direct') {
-                $role = 'director';
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+
+                $role = strtolower(
+                    trim($row['role'] ?? '')
+                );
+
+                if (!empty($role)) {
+
+                    if ($role === 'direct') {
+                        $role = 'director';
+                    }
+
+                    $item[$role][] = $row['fullname'];
+                }
             }
-            $item[$role][] = $row['fullname'];
         }
 
         $stmt->closeCursor();
@@ -115,33 +102,11 @@ class BaseRepository implements BaseRepositoryInterface
     | CREATE
     |--------------------------------------------------------------------------
     */
+    public function create(array $data): bool
+    {
+        $this->guard($this->spCreate);
 
-    public function create(
-        mixed $data
-    ): bool {
-
-        $fields = array_keys((array) $data);
-
-        $columns = implode(', ', $fields);
-
-        $placeholders = implode(
-            ', ',
-            array_map(
-                fn($field) => ':' . $field,
-                $fields
-            )
-        );
-
-        $sql = "
-            INSERT INTO {$this->table}
-            ({$columns})
-            VALUES ({$placeholders})
-        ";
-
-        return $this->execute(
-            $sql,
-            (array) $data
-        );
+        return $this->executeSP($this->spCreate, array_values($data));
     }
 
     /*
@@ -149,32 +114,14 @@ class BaseRepository implements BaseRepositoryInterface
     | UPDATE
     |--------------------------------------------------------------------------
     */
+    public function update(int $id, array $data): bool
+    {
+        $this->guard($this->spUpdate);
 
-    public function update(
-        int $id,
-        mixed $data
-    ): bool {
-
-        $fields = array_keys((array) $data);
-
-        $setClause = implode(
-            ', ',
-            array_map(
-                fn($field) => "{$field} = :{$field}",
-                $fields
-            )
+        return $this->executeSP(
+            $this->spUpdate,
+            array_merge([$id], array_values($data))
         );
-
-        $sql = "
-            UPDATE {$this->table}
-            SET {$setClause}
-            WHERE {$this->primaryKey} = :id
-        ";
-
-        $params = (array) $data;
-        $params['id'] = $id;
-
-        return $this->execute($sql, $params);
     }
 
     /*
@@ -182,78 +129,106 @@ class BaseRepository implements BaseRepositoryInterface
     | DELETE
     |--------------------------------------------------------------------------
     */
+    public function delete(int $id): bool
+    {
+        $this->guard($this->spDelete);
 
-    public function delete(
-        int $id
-    ): bool {
-
-        $sql = "
-            DELETE FROM {$this->table}
-            WHERE {$this->primaryKey} = :id
-        ";
-
-        return $this->execute($sql, [
-            ':id' => $id
-        ]);
+        return $this->executeSP($this->spDelete, [$id]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | HELPERS
+    | SP FETCH ONE
     |--------------------------------------------------------------------------
     */
+    protected function fetchOneSP(string $sp, array $params = []): ?array
+    {
+        $stmt = $this->db->prepare($this->buildCall($sp, $params));
+        $this->bind($stmt, $params);
+        $stmt->execute();
 
-    protected function query(
-        string $sql,
-        array $params = []
-    ): \PDOStatement {
-
-        $stmt = $this->db->prepare($sql);
-
-        $stmt->execute($params);
-
-        return $stmt;
-    }
-
-    protected function fetchOne(
-        string $sql,
-        array $params = []
-    ): ?array {
-
-        $stmt = $this->query($sql, $params);
-
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
         $stmt->closeCursor();
 
-        return $result ?: null;
+        return $data ?: null;
     }
 
-    protected function fetchAll(
-        string $sql,
-        array $params = []
-    ): array {
+    /*
+    |--------------------------------------------------------------------------
+    | SP FETCH ALL
+    |--------------------------------------------------------------------------
+    */
+    protected function fetchAllSP(string $sp, array $params = []): array
+    {
+        $stmt = $this->db->prepare($this->buildCall($sp, $params));
+        $this->bind($stmt, $params);
+        $stmt->execute();
 
-        $stmt = $this->query($sql, $params);
-
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $stmt->closeCursor();
 
-        return $results;
+        return $data;
     }
 
-    protected function execute(
-        string $sql,
-        array $params = []
-    ): bool {
+    /*
+    |--------------------------------------------------------------------------
+    | SP EXECUTE (NO RETURN)
+    |--------------------------------------------------------------------------
+    */
+    protected function executeSP(string $sp, array $params = []): bool
+    {
+        $stmt = $this->db->prepare($this->buildCall($sp, $params));
+        $this->bind($stmt, $params);
 
-        $stmt = $this->db->prepare($sql);
-
-        $success = $stmt->execute($params);
-
+        $ok = $stmt->execute();
         $stmt->closeCursor();
 
-        return $success;
+        return $ok;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | BUILD CALL STRING
+    |--------------------------------------------------------------------------
+    */
+    private function buildCall(string $sp, array $params): string
+    {
+        return "CALL {$sp}(" . $this->placeholders($params) . ")";
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | GUARD CLAUSE (IMPORTANT)
+    |--------------------------------------------------------------------------
+    */
+    private function guard(string $sp): void
+    {
+        if ($sp === '') {
+            throw new \RuntimeException('Stored procedure not defined in repository.');
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PLACEHOLDERS
+    |--------------------------------------------------------------------------
+    */
+    private function placeholders(array $params): string
+    {
+        return count($params)
+            ? implode(',', array_fill(0, count($params), '?'))
+            : '';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | BIND PARAMETERS
+    |--------------------------------------------------------------------------
+    */
+    private function bind($stmt, array $params): void
+    {
+        foreach (array_values($params) as $i => $value) {
+            $stmt->bindValue($i + 1, $value);
+        }
     }
 }

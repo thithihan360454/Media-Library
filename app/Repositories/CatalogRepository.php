@@ -2,167 +2,77 @@
 
 namespace App\Repositories;
 
-use PDO;
 use App\Interfaces\CatalogRepositoryInterface;
 
-class CatalogRepository
-extends BaseRepository
-implements CatalogRepositoryInterface
+class CatalogRepository extends BaseRepository implements CatalogRepositoryInterface
 {
-    protected string $table = 'view_catalog';
-    protected string $primaryKey = 'media_id';
-    protected array $columns = [
-        'media_id',
-        'title',
-        'img',
-        'format',
-        'year',
-        'genre',
-        'category'
-    ];
+    protected string $spGetAll = 'sp_get_full_catalog';
+    protected string $spGetById = 'sp_get_item_full_detail';
+
+    protected bool $hasMultiRowset = true;
 
     /*
     |--------------------------------------------------------------------------
-    | COUNT CATALOG
+    | COUNT (SP)
     |--------------------------------------------------------------------------
     */
-
     public function count(array $filters = []): int
     {
-        $conditions = [];
-        $params = [];
+        $search = $filters['search'] ?? null;
+        $category = $filters['category'] ?? null;
 
-        if (!empty($filters['search'])) {
-            $conditions[] = "title LIKE :search";
-            $params[':search'] = '%' . $filters['search'] . '%';
-        }
+        $stmt = $this->db->prepare("CALL sp_search_catalog_count(?, ?)");
+        $stmt->execute([$search, $category]);
 
-        if (!empty($filters['category'])) {
-            $conditions[] = "category = :category";
-            $params[':category'] = $filters['category'];
-        }
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
 
-        $where = $conditions
-            ? 'WHERE ' . implode(' AND ', $conditions)
-            : '';
-
-        $sql = "
-            SELECT COUNT(*) 
-            FROM {$this->table}
-            {$where}
-        ";
-
-        $stmt = $this->query($sql, $params);
-
-        return (int) $stmt->fetchColumn();
+        return (int) ($result['total'] ?? 0);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | CATEGORY CATALOG
+    | CATEGORY CATALOG (SP)
     |--------------------------------------------------------------------------
     */
-
     public function getCategoryCatalog(
         string $category,
         ?int $limit = null,
         int $offset = 0
     ): array {
-
-        $sql = "
-            SELECT {$this->getColumnList()}
-            FROM {$this->table}
-            WHERE category = :category
-        ";
-
-        if ($limit !== null) {
-            $sql .= " LIMIT :limit OFFSET :offset";
-        }
-
-        $stmt = $this->db->prepare($sql);
-
-        $stmt->bindValue(':category', $category, PDO::PARAM_STR);
-
-        if ($limit !== null) {
-            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-        }
-
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->fetchAllSP('sp_get_catalog', [
+            $category,
+            $limit,
+            $offset
+        ]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | SEARCH CATALOG
+    | SEARCH CATALOG (SP)
     |--------------------------------------------------------------------------
     */
-
     public function getSearchCatalog(
         ?string $search,
         ?string $category = null,
         ?int $limit = null,
         int $offset = 0
     ): array {
-
-        $conditions = [];
-        $params = [];
-
-        if ($search !== null && $search !== '') {
-            $conditions[] = "title LIKE :search";
-            $params[':search'] = '%' . $search . '%';
-        }
-
-        if ($category !== null) {
-            $conditions[] = "category = :category";
-            $params[':category'] = $category;
-        }
-
-        $where = $conditions
-            ? 'WHERE ' . implode(' AND ', $conditions)
-            : '';
-
-        $sql = "
-            SELECT {$this->getColumnList()}
-            FROM {$this->table}
-            {$where}
-        ";
-
-        if ($limit !== null) {
-            $sql .= " LIMIT :limit OFFSET :offset";
-        }
-
-        $stmt = $this->db->prepare($sql);
-
-        foreach ($params as $key => $value) {
-            $stmt->bindValue(
-                $key,
-                $value,
-                PDO::PARAM_STR
-            );
-        }
-
-        if ($limit !== null) {
-            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-        }
-
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->fetchAllSP('sp_search_catalog', [
+            $search,
+            $category,
+            $limit,
+            $offset
+        ]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | RANDOM CATALOG
+    | RANDOM CATALOG (SP)
     |--------------------------------------------------------------------------
     */
-
     public function getRandomCatalog(): array
     {
-        return $this->fetchAll(
-            "CALL sp_get_random_catalog()"
-        );
+        return $this->fetchAllSP('sp_get_random_catalog');
     }
 }

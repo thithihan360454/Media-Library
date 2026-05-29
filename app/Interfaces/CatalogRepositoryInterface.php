@@ -2,12 +2,9 @@
 
 namespace App\Interfaces;
 
-interface CatalogRepositoryInterface
-extends BaseRepositoryInterface
+interface CatalogRepositoryInterface extends BaseRepositoryInterface
 {
-    public function count(
-        array $filters = []
-    ): int;
+    public function count(array $filters = []): int;
 
     public function getCategoryCatalog(
         string $category,

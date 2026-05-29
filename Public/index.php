@@ -131,7 +131,7 @@ $protectedPages = ['home', 'catalog', 'details', 'suggest'];
 
 if (
     in_array($page, $protectedPages) &&
-    !isset($_SESSION['user_id'])
+    !isset($_SESSION['userid'])
 ) {
     $_SESSION['auth_error'] = "Please login first!";
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controllers\Api;
 
 use App\Services\UserService;
@@ -8,108 +10,74 @@ class AuthApiController
 {
     private UserService $userService;
 
-    public function __construct(UserService $userService)
-    {
+    public function __construct(
+        UserService $userService
+    ) {
         $this->userService = $userService;
     }
 
-    /**
-     * REGISTER API
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | REGISTER API
+    |--------------------------------------------------------------------------
+    */
     public function register(): void
     {
-        header('Content-Type: application/json');
+        $this->jsonHeader();
 
-        $data = json_decode(file_get_contents("php://input"), true);
+        $data = $this->getJsonInput();
 
-        $username = trim($data['username'] ?? '');
-        $email    = trim($data['email'] ?? '');
-        $password = trim($data['password'] ?? '');
-
-        if (!$username || !$email || !$password) {
-            echo json_encode([
-                "status" => "error",
-                "message" => "All fields are required"
-            ]);
-            return;
-        }
-
-        $success = $this->userService->register(
-            $username,
-            $email,
-            password_hash($password, PASSWORD_DEFAULT)
-        );
-
-        if ($success) {
-            echo json_encode([
-                "status" => "success",
-                "message" => "User registered successfully"
-            ]);
-            return;
-        }
-
-        echo json_encode([
-            "status" => "error",
-            "message" => "Email already exists"
+        $result = $this->userService->register([
+            'username' => trim($data['username'] ?? ''),
+            'email'    => trim($data['email'] ?? ''),
+            'password' => trim($data['password'] ?? '')
         ]);
+
+        echo json_encode($result);
     }
 
-    /**
-     * LOGIN API
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | LOGIN API
+    |--------------------------------------------------------------------------
+    */
     public function login(): void
     {
-        header('Content-Type: application/json');
+        $this->jsonHeader();
 
-        $data = json_decode(file_get_contents("php://input"), true);
+        $data = $this->getJsonInput();
 
-        $email    = trim($data['email'] ?? '');
-        $password = trim($data['password'] ?? '');
-
-        if (!$email || !$password) {
-            echo json_encode([
-                "status" => "error",
-                "message" => "Email and password required"
-            ]);
-            return;
-        }
-
-        $user = $this->userService->login($email, $password);
-
-        if ($user) {
-            echo json_encode([
-                "status" => "success",
-                "message" => "Login successful",
-                "data" => [
-                    "user_id" => $user->user_id,
-                    "username" => $user->username,
-                    "email" => $user->email
-                ]
-            ]);
-            return;
-        }
-
-        echo json_encode([
-            "status" => "error",
-            "message" => "Invalid credentials"
+        $result = $this->userService->login([
+            'email'    => trim($data['email'] ?? ''),
+            'password' => trim($data['password'] ?? '')
         ]);
+
+        echo json_encode($result);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | LOGOUT API
+    |--------------------------------------------------------------------------
+    */
     public function logout(): void
     {
-        header('Content-Type: application/json');
+        $this->jsonHeader();
 
-        session_start();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
 
         $_SESSION = [];
 
-        if (ini_get("session.use_cookies")) {
+        if (ini_get('session.use_cookies')) {
+
             $params = session_get_cookie_params();
 
             setcookie(
                 session_name(),
                 '',
-                time() - 3600,
+                time() - 42000,
                 $params['path'],
                 $params['domain'],
                 $params['secure'],
@@ -120,8 +88,30 @@ class AuthApiController
         session_destroy();
 
         echo json_encode([
-            "status" => "success",
-            "message" => "Logged out successfully"
+            'success' => true,
+            'message' => 'Logged out successfully'
         ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | JSON HEADER
+    |--------------------------------------------------------------------------
+    */
+    private function jsonHeader(): void
+    {
+        header('Content-Type: application/json');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET JSON INPUT
+    |--------------------------------------------------------------------------
+    */
+    private function getJsonInput(): array
+    {
+        $input = file_get_contents('php://input');
+
+        return json_decode($input, true) ?? [];
     }
 }

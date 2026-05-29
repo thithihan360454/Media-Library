@@ -4,7 +4,12 @@ namespace App\Models;
 
 class User
 {
-    private int $user_id;
+    /*
+    |--------------------------------------------------------------------------
+    | PROPERTIES
+    |--------------------------------------------------------------------------
+    */
+    private ?int $userid = null;
 
     private string $username;
 
@@ -16,28 +21,31 @@ class User
     |--------------------------------------------------------------------------
     | CONSTRUCTOR
     |--------------------------------------------------------------------------
-    | Ensure object is always in valid state
     */
     public function __construct(
         string $username,
         string $email,
         string $password,
-        ?int $user_id = null
+        ?int $userid = null
     ) {
-        if ($user_id !== null) {
-            $this->user_id = $user_id;
-        }
+        $this->userid = $userid;
 
         $this->username = trim($username);
+
         $this->email = trim($email);
+
         $this->password = $password;
     }
 
-    // ===== GETTERS =====
+    /*
+    |--------------------------------------------------------------------------
+    | GETTERS
+    |--------------------------------------------------------------------------
+    */
 
-    public function getUserId(): int
+    public function getUserId(): ?int
     {
-        return $this->user_id;
+        return $this->userid;
     }
 
     public function getUsername(): string
@@ -55,11 +63,15 @@ class User
         return $this->password;
     }
 
-    // ===== SETTERS =====
+    /*
+    |--------------------------------------------------------------------------
+    | SETTERS
+    |--------------------------------------------------------------------------
+    */
 
     public function setUserId(int $id): void
     {
-        $this->user_id = $id;
+        $this->userid = $id;
     }
 
     public function setUsername(string $username): void
@@ -77,13 +89,34 @@ class User
         $this->password = $password;
     }
 
-    // ===== RESPONSE FORMAT =====
-
+    /*
+    |--------------------------------------------------------------------------
+    | CONVERT OBJECT TO ARRAY
+    |--------------------------------------------------------------------------
+    */
     public function toArray(): array
     {
         return [
-            'user_id' => $this->getUserId(),
             'username' => $this->getUsername(),
+
+            'email' => $this->getEmail(),
+
+            'password' => $this->getPassword()
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | SAFE RESPONSE ARRAY
+    |--------------------------------------------------------------------------
+    */
+    public function toResponseArray(): array
+    {
+        return [
+            'userid' => $this->getUserId(),
+
+            'username' => $this->getUsername(),
+
             'email' => $this->getEmail()
         ];
     }

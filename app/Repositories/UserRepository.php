@@ -4,91 +4,31 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Models\User;
 use App\Interfaces\UserRepositoryInterface;
+use App\Mappers\UserMapper;
+use App\Models\User;
 
-class UserRepository
-extends BaseRepository
-implements UserRepositoryInterface
+class UserRepository extends BaseRepository implements UserRepositoryInterface
 {
-    protected string $table = 'users';
-
-    protected string $primaryKey = 'user_id';
-
-    protected array $columns = [
-        'user_id',
-        'username',
-        'email',
-        'password'
-    ];
+    protected string $spGetAll = 'sp_get_users';
+    protected string $spGetById = 'sp_get_user_by_id';
+    protected string $spCreate = 'sp_create_user';
+    protected string $spUpdate = 'sp_update_user';
+    protected string $spDelete = 'sp_delete_user';
 
     /*
     |--------------------------------------------------------------------------
-    | FIND USER BY EMAIL
+    | FIND BY EMAIL (SP VERSION)
     |--------------------------------------------------------------------------
     */
-
-    public function findByEmail(
-        string $email
-    ): ?User {
-
-        $sql = "
-            SELECT {$this->getColumnList()}
-            FROM {$this->table}
-            WHERE email = :email
-            LIMIT 1
-        ";
-
-        $data = $this->fetchOne($sql, [
-            ':email' => $email
-        ]);
-
-        if (!$data) {
-            return null;
-        }
-
-        return $this->mapUser($data);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MAP USER
-    |--------------------------------------------------------------------------
-    */
-
-    // private function mapUser(
-    //     array $data
-    // ): User {
-
-    //     $user = new User();
-
-    //     $user->setUserId(
-    //         (int) $data['user_id']
-    //     );
-
-    //     $user->setUsername(
-    //         $data['username']
-    //     );
-
-    //     $user->setEmail(
-    //         $data['email']
-    //     );
-
-    //     $user->setPassword(
-    //         $data['password']
-    //     );
-
-    //     return $user;
-    // }
-
-    private function mapUser(array $data): User
+    public function findByEmail(string $email): ?User
     {
-        return new User(
-            $data['username'],
-            $data['email'],
-            $data['password'],
-            (int) $data['user_id']
-        );
+        $stmt = $this->db->prepare("CALL sp_find_user_by_email(?)");
+        $stmt->execute([$email]);
+
+        $data = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
+
+        return $data ? UserMapper::fromArray($data) : null;
     }
 }

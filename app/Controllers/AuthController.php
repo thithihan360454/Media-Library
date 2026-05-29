@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use App\Services\UserService;
 
-class AuthController
+class AuthController extends BaseController
 {
     private UserService $userService;
 
@@ -15,61 +15,41 @@ class AuthController
         $this->userService = $userService;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW REGISTER PAGE
-    |--------------------------------------------------------------------------
-    */
     public function showRegister(): void
     {
         require BASE_PATH . '/view/auth/register.php';
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | REGISTER SUBMIT
-    |--------------------------------------------------------------------------
-    */
     public function register(): void
     {
         $data = [
-            'username' => trim($_POST['username'] ?? ''),
-            'email'    => trim($_POST['email'] ?? ''),
-            'password' => trim($_POST['password'] ?? '')
+            'username'         => trim($_POST['username'] ?? ''),
+            'email'            => trim($_POST['email'] ?? ''),
+            'password'         => trim($_POST['password'] ?? ''),
+            'confirm_password' => trim($_POST['confirm_password'] ?? ''),
         ];
 
         $result = $this->userService->register($data);
 
         if (!$result['success']) {
-
-            $_SESSION['errors'] = $result['errors'];
-            $_SESSION['old'] = $data;
-
-            header('Location: ' . BASE_URL . '/Public/index.php?page=register');
-            exit;
+            $this->withErrors(
+                $result['errors'],
+                $data,
+                BASE_URL . '/Public/index.php?page=register'
+            );
         }
 
-        $_SESSION['success'] = 'Registration successful';
-
-        header('Location: ' . BASE_URL . '/Public/index.php?page=login');
-        exit;
+        $this->withSuccess(
+            'Registration successful',
+            BASE_URL . '/Public/index.php?page=login'
+        );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW LOGIN PAGE
-    |--------------------------------------------------------------------------
-    */
     public function showLogin(): void
     {
         require BASE_PATH . '/view/auth/login.php';
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | LOGIN SUBMIT
-    |--------------------------------------------------------------------------
-    */
     public function login(): void
     {
         $data = [
@@ -79,44 +59,22 @@ class AuthController
 
         $result = $this->userService->login($data);
 
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATION FAILED
-        |--------------------------------------------------------------------------
-        */
         if (!$result['success']) {
-
-            $_SESSION['errors'] = $result['errors'];
-            $_SESSION['old'] = $data;
-
-            header('Location: ' . BASE_URL . '/Public/index.php?page=login');
-            exit;
+            $this->withErrors(
+                $result['errors'],
+                $data,
+                BASE_URL . '/Public/index.php?page=login'
+            );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | LOGIN SUCCESS
-        |--------------------------------------------------------------------------
-        */
-        $user = $result['user'];
+        $this->loginUser($result['data']);
 
-        $_SESSION['user_id'] = $user->getUserId();
-        $_SESSION['username'] = $user->getUsername();
-
-        header('Location: ' . BASE_URL . '/Public/index.php?page=home');
-        exit;
+        $this->redirect(BASE_URL . '/Public/index.php?page=home');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | LOGOUT
-    |--------------------------------------------------------------------------
-    */
     public function logout(): void
     {
         session_destroy();
-
-        header('Location: ' . BASE_URL . '/Public/index.php?page=login');
-        exit;
+        $this->redirect(BASE_URL . '/Public/index.php?page=login');
     }
 }
