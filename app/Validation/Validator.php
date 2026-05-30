@@ -17,6 +17,10 @@ class Validator
 
             $value = trim($data[$field] ?? '');
 
+            // if (is_string($value)) {
+            //     $value = trim($value);
+            // }
+
             foreach ($fieldRules as $rule) {
 
                 /*

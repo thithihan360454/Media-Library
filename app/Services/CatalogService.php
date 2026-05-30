@@ -3,17 +3,23 @@
 namespace App\Services;
 
 use App\Interfaces\CatalogRepositoryInterface;
+use App\Exceptions\ValidationException;
+use App\Exceptions\DatabaseException;
 
 class CatalogService extends BaseService
 {
     private CatalogRepositoryInterface $repo;
 
-    public function __construct(
-        CatalogRepositoryInterface $repo
-    ) {
+    public function __construct(CatalogRepositoryInterface $repo)
+    {
         $this->repo = $repo;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | HOME PAGE DATA
+    |--------------------------------------------------------------------------
+    */
     public function getHomePageData(): array
     {
         return [
@@ -23,14 +29,15 @@ class CatalogService extends BaseService
         ];
     }
 
-    public function getCatalogPage(
-        array $queryParams
-    ): array {
-
+    /*
+    |--------------------------------------------------------------------------
+    | CATALOG PAGE
+    |--------------------------------------------------------------------------
+    */
+    public function getCatalogPage(array $queryParams): array
+    {
         $section = $this->getCategory($queryParams);
-
         $search = $this->getSearchTerm($queryParams);
-
         $currentPage = $this->getCurrentPage($queryParams);
 
         $totalItems = $this->repo->count([
@@ -38,10 +45,11 @@ class CatalogService extends BaseService
             'search' => $search
         ]);
 
-        $pagination = $this->buildPagination(
-            $totalItems,
-            $currentPage
-        );
+        if ($totalItems === false) {
+            throw new DatabaseException("Failed to count catalog items");
+        }
+
+        $pagination = $this->buildPagination($totalItems, $currentPage);
 
         $catalog = $this->loadCatalogData(
             $section,
@@ -57,40 +65,51 @@ class CatalogService extends BaseService
             'currentPage' => $pagination['currentPage'],
             'totalPages' => $pagination['totalPages'],
             'pageTitle' => $this->buildPageTitle($section),
-            'queryString' => $this->buildQueryString(
-                $section,
-                $search
-            )
+            'queryString' => $this->buildQueryString($section, $search)
         ];
     }
 
-    private function getCategory(
-        array $params
-    ): ?string {
-
+    /*
+    |--------------------------------------------------------------------------
+    | CATEGORY VALIDATION (NOW STRICT)
+    |--------------------------------------------------------------------------
+    */
+    private function getCategory(array $params): ?string
+    {
         $category = $params['cat'] ?? null;
+
+        if ($category === null) {
+            return null;
+        }
 
         $allowed = ['books', 'movies', 'music'];
 
-        return (
-            $category !== null
-            && in_array($category, $allowed, true)
-        )
-            ? $category
-            : null;
+        if (!in_array($category, $allowed, true)) {
+            throw new ValidationException([
+                'cat' => 'Invalid category selected'
+            ]);
+        }
+
+        return $category;
     }
 
-    private function getSearchTerm(
-        array $params
-    ): ?string {
-
+    /*
+    |--------------------------------------------------------------------------
+    | SEARCH
+    |--------------------------------------------------------------------------
+    */
+    private function getSearchTerm(array $params): ?string
+    {
         $search = trim($params['s'] ?? '');
 
-        return $search !== ''
-            ? $search
-            : null;
+        return $search !== '' ? $search : null;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | LOAD DATA
+    |--------------------------------------------------------------------------
+    */
     private function loadCatalogData(
         ?string $section,
         ?string $search,
@@ -98,51 +117,56 @@ class CatalogService extends BaseService
         int $offset
     ): array {
 
+        $catalog = null;
+
         if ($search !== null && $section !== null) {
-            return $this->repo->getSearchCatalog(
-                $search,
-                $section,
-                $limit,
-                $offset
-            );
+            $catalog = $this->repo->getSearchCatalog($search, $section, $limit, $offset);
+        } elseif ($search !== null) {
+            $catalog = $this->repo->getSearchCatalog($search, null, $limit, $offset);
+        } elseif ($section !== null) {
+            $catalog = $this->repo->getCategoryCatalog($section, $limit, $offset);
+        } else {
+            $catalog = $this->repo->getAll($limit, $offset);
         }
 
-        if ($search !== null) {
-            return $this->repo->getSearchCatalog(
-                $search,
-                null,
-                $limit,
-                $offset
-            );
+        if ($catalog === false) {
+            throw new DatabaseException("Failed to load catalog data");
         }
 
-        if ($section !== null) {
-            return $this->repo->getCategoryCatalog(
-                $section,
-                $limit,
-                $offset
-            );
-        }
-
-        return $this->repo->getAll(
-            $limit,
-            $offset
-        );
+        return $catalog;
     }
 
-    private function buildPageTitle(
-        ?string $section
-    ): string {
-
-        return $section
-            ? ucfirst($section)
-            : 'Full Catalog';
+    /*
+    |--------------------------------------------------------------------------
+    | TITLE
+    |--------------------------------------------------------------------------
+    */
+    private function buildPageTitle(?string $section): string
+    {
+        return $section ? ucfirst($section) : 'Full Catalog';
     }
 
-    public function getById(
-        int $id
-    ): ?array {
+    /*
+    |--------------------------------------------------------------------------
+    | DETAIL
+    |--------------------------------------------------------------------------
+    */
+    public function getById(int $id): ?array
+    {
+        if ($id <= 0) {
+            throw new ValidationException([
+                'id' => 'Invalid catalog ID'
+            ]);
+        }
 
-        return $this->repo->getById($id);
+        $data = $this->repo->getById($id);
+
+        if (!$data) {
+            throw new ValidationException([
+                'catalog' => 'Item not found'
+            ]);
+        }
+
+        return $data;
     }
 }

@@ -3,12 +3,6 @@
 namespace App\Controllers;
 
 use App\Services\CatalogService;
-//require_once BASE_PATH . '/Service/CatalogService.php';
-
-/*
- * Thin Controller:
- * Only handles HTTP request → passes to service → loads view
- */
 
 class CatalogController extends BaseController
 {
@@ -20,30 +14,54 @@ class CatalogController extends BaseController
     }
 
     /*
-     * Homepage
-     */
+    |--------------------------------------------------------------------------
+    | Homepage
+    |--------------------------------------------------------------------------
+    */
     public function home(): void
     {
         $this->requireLogin();
+
         $data = $this->catalogService->getHomePageData();
 
-        // Extract variables for view
         extract($data);
 
         require BASE_PATH . '/view/home.php';
     }
 
-    /**
-     * Catalog page (FULL LOGIC MOVED TO SERVICE)
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Catalog Page
+    |--------------------------------------------------------------------------
+    */
     public function index(): void
     {
         $this->requireLogin();
+
         $data = $this->catalogService->getCatalogPage($_GET);
 
-        // Make variables available in view
         extract($data);
 
         require BASE_PATH . '/view/catalog.php';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Detail Page (optional future use)
+    |--------------------------------------------------------------------------
+    */
+    public function show(int $id): void
+    {
+        $this->requireLogin();
+
+        $data = $this->catalogService->getById($id);
+
+        if (!$data) {
+            throw new \App\Exceptions\ValidationException([
+                'catalog' => 'Item not found'
+            ]);
+        }
+
+        require BASE_PATH . '/view/catalog-detail.php';
     }
 }

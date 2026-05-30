@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 use Dotenv\Dotenv;
 
 use App\Core\Database;
+use App\Core\ErrorHandler;
+use App\Core\ExceptionHandler;
 
 use App\Repositories\CatalogRepository;
 use App\Repositories\FormatRepository;
@@ -26,31 +30,28 @@ use App\Validation\Validator;
 
 /*
 |--------------------------------------------------------------------------
-| ERROR REPORTING
-|--------------------------------------------------------------------------
-*/
-
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('html_errors', 1);
-
-/*
-|--------------------------------------------------------------------------
-| SESSION START (CRITICAL)
-|--------------------------------------------------------------------------
-*/
-session_start();
-
-/*
-|--------------------------------------------------------------------------
 | BASE PATH
 |--------------------------------------------------------------------------
 */
+
 define('BASE_PATH', dirname(__DIR__));
 
+/*
+|--------------------------------------------------------------------------
+| AUTOLOAD
+|--------------------------------------------------------------------------
+*/
 require_once BASE_PATH . '/vendor/autoload.php';
-require_once BASE_PATH . '/App/Core/Database.php';
 require_once BASE_PATH . '/inc/CustomPath.php';
+
+/*
+|--------------------------------------------------------------------------
+| SESSION
+|--------------------------------------------------------------------------
+*/
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,33 @@ require_once BASE_PATH . '/inc/CustomPath.php';
 */
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
+
+/*
+|--------------------------------------------------------------------------
+| ERROR REPORTING
+|--------------------------------------------------------------------------
+*/
+error_reporting(E_ALL);
+
+ini_set(
+    'display_errors',
+    $_ENV['APP_DEBUG'] ?? '1'
+);
+
+ini_set('html_errors', '1');
+
+/*
+|--------------------------------------------------------------------------
+| GLOBAL ERROR HANDLER
+|--------------------------------------------------------------------------
+*/
+set_error_handler(
+    [ErrorHandler::class, 'handle']
+);
+
+set_exception_handler(
+    [ExceptionHandler::class, 'handle']
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -73,18 +101,30 @@ $db = Database::getConnection();
 |--------------------------------------------------------------------------
 */
 $catalogRepo = new CatalogRepository($db);
-$formatRepo  = new FormatRepository($db);
-$userRepo    = new UserRepository($db);
+
+$formatRepo = new FormatRepository($db);
+
+$userRepo = new UserRepository($db);
+
+/*
+|--------------------------------------------------------------------------
+| VALIDATOR
+|--------------------------------------------------------------------------
+*/
+$validator = new Validator();
 
 /*
 |--------------------------------------------------------------------------
 | SERVICES
 |--------------------------------------------------------------------------
 */
-$catalogService = new CatalogService($catalogRepo);
-$formatService  = new FormatService($formatRepo);
-// $userService    = new UserService($userRepo);
-$validator = new Validator();
+$catalogService = new CatalogService(
+    $catalogRepo
+);
+
+$formatService = new FormatService(
+    $formatRepo
+);
 
 $userService = new UserService(
     $userRepo,
@@ -93,54 +133,86 @@ $userService = new UserService(
 
 /*
 |--------------------------------------------------------------------------
-| CONTROLLERS (CREATE ONCE ONLY)
+| CONTROLLERS
 |--------------------------------------------------------------------------
 */
-$catalogController = new CatalogController($catalogService);
-$detailsController = new DetailsController($catalogService);
-$suggestController = new SuggestController($formatService);
-$authController    = new AuthController($userService);
+$catalogController = new CatalogController(
+    $catalogService
+);
+
+$detailsController = new DetailsController(
+    $catalogService
+);
+
+$suggestController = new SuggestController(
+    $formatService
+);
+
+$authController = new AuthController(
+    $userService
+);
 
 /*
 |--------------------------------------------------------------------------
-| API CONTROLLERS (CREATE ONCE ONLY)
+| API CONTROLLERS
 |--------------------------------------------------------------------------
 */
+$catalogApiController = new CatalogApiController(
+    $catalogService
+);
 
-$authApiController = new AuthApiController($userService);
+$detailsApiController = new DetailsApiController(
+    $catalogService
+);
+
+$suggestApiController = new SuggestApiController(
+    $formatService
+);
+
+$authApiController = new AuthApiController(
+    $userService
+);
+
+/*
+|--------------------------------------------------------------------------
+| CURRENT PAGE
+|--------------------------------------------------------------------------
+*/
+$page = $_GET['page'] ?? 'home';
+
+/*
+|--------------------------------------------------------------------------
+| AUTH MIDDLEWARE
+|--------------------------------------------------------------------------
+*/
+$protectedPages = [
+    'home',
+    'catalog',
+    'details',
+    'suggest'
+];
+
+if (
+    in_array($page, $protectedPages, true)
+    && !isset($_SESSION['userid'])
+) {
+
+    $_SESSION['auth_error'] =
+        'Please login first';
+
+    header(
+        'Location: index.php?page=login'
+    );
+
+    exit;
+}
 
 /*
 |--------------------------------------------------------------------------
 | ROUTER
 |--------------------------------------------------------------------------
 */
-$page = $_GET['page'] ?? 'home';
-
-
-/*
-|----------------------------------------------------------------
-| AUTH PROTECTION (PUT HERE)
-|----------------------------------------------------------------
-*/
-/*
-|--------------------------------------------------------------------------
-| AUTH MIDDLEWARE (FIXED)
-|--------------------------------------------------------------------------
-*/
-$protectedPages = ['home', 'catalog', 'details', 'suggest'];
-
-if (
-    in_array($page, $protectedPages) &&
-    !isset($_SESSION['userid'])
-) {
-    $_SESSION['auth_error'] = "Please login first!";
-
-    header("Location: index.php?page=login");
-    exit;
-}
-
 switch ($page) {
-
 
     /*
     |--------------------------------------------------------------------------
@@ -194,18 +266,15 @@ switch ($page) {
     |--------------------------------------------------------------------------
     */
     case 'api-catalog':
-        $controller = new CatalogApiController($catalogService);
-        $controller->index();
+        $catalogApiController->index();
         break;
 
     case 'api-details':
-        $controller = new DetailsApiController($catalogService);
-        $controller->show();
+        $detailsApiController->show();
         break;
 
     case 'api-suggest':
-        $controller = new SuggestApiController($formatService);
-        $controller->store();
+        $suggestApiController->store();
         break;
 
     case 'api-register':
@@ -220,13 +289,16 @@ switch ($page) {
         $authApiController->logout();
         break;
 
-
     /*
     |--------------------------------------------------------------------------
-    | DEFAULT ROUTE
+    | 404
     |--------------------------------------------------------------------------
     */
     default:
-        $catalogController->home();
-        break;
+
+        http_response_code(404);
+
+        throw new \App\Exceptions\NotFoundException(
+            'Page not found'
+        );
 }

@@ -6,10 +6,14 @@ $hideSearch = true;
 
 require BASE_PATH . '/view/Layout/header.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $errors = $_SESSION['errors'] ?? [];
 $old    = $_SESSION['old'] ?? [];
 
-unset($_SESSION['errors'], $_SESSION['old']);
+unset($_SESSION['errors'], $_SESSION['old'], $_SESSION['error'], $_SESSION['success']);
 
 ?>
 
@@ -28,17 +32,9 @@ unset($_SESSION['errors'], $_SESSION['old']);
                 <div class="auth-message auth-success">
                     <?= htmlspecialchars($_SESSION['success']) ?>
                 </div>
-                <?php unset($_SESSION['success']); ?>
             <?php endif; ?>
 
-            <!-- ERROR -->
-            <?php if (!empty($_SESSION['error'])): ?>
-                <div class="auth-message auth-error">
-                    <?= htmlspecialchars($_SESSION['error']) ?>
-                </div>
-                <?php unset($_SESSION['error']); ?>
-            <?php endif; ?>
-
+            <!-- FORM -->
             <form method="POST" action="<?= BASE_URL ?>/Public/index.php?page=register-submit">
 
                 <!-- USERNAME -->
@@ -48,7 +44,7 @@ unset($_SESSION['errors'], $_SESSION['old']);
                         value="<?= htmlspecialchars($old['username'] ?? '') ?>">
 
                     <?php if (!empty($errors['username'])): ?>
-                        <small class="error"><?= $errors['username'] ?></small>
+                        <small class="error"><?= htmlspecialchars($errors['username']) ?></small>
                     <?php endif; ?>
                 </div>
 
@@ -59,7 +55,7 @@ unset($_SESSION['errors'], $_SESSION['old']);
                         value="<?= htmlspecialchars($old['email'] ?? '') ?>">
 
                     <?php if (!empty($errors['email'])): ?>
-                        <small class="error"><?= $errors['email'] ?></small>
+                        <small class="error"><?= htmlspecialchars($errors['email']) ?></small>
                     <?php endif; ?>
                 </div>
 
@@ -69,12 +65,11 @@ unset($_SESSION['errors'], $_SESSION['old']);
 
                     <div class="input-wrapper">
                         <input type="password" name="password" id="password">
-
                         <span class="toggle-password" data-target="password">👁</span>
                     </div>
 
                     <?php if (!empty($errors['password'])): ?>
-                        <small class="error"><?= $errors['password'] ?></small>
+                        <small class="error"><?= htmlspecialchars($errors['password']) ?></small>
                     <?php endif; ?>
                 </div>
 
@@ -84,12 +79,11 @@ unset($_SESSION['errors'], $_SESSION['old']);
 
                     <div class="input-wrapper">
                         <input type="password" name="confirm_password" id="confirm_password">
-
                         <span class="toggle-password" data-target="confirm_password">👁</span>
                     </div>
 
                     <?php if (!empty($errors['confirm_password'])): ?>
-                        <small class="error"><?= $errors['confirm_password'] ?></small>
+                        <small class="error"><?= htmlspecialchars($errors['confirm_password']) ?></small>
                     <?php endif; ?>
                 </div>
 

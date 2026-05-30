@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\ExceptionHandler;
+use App\DTO\UserDTO;
 use App\Services\UserService;
 
 class AuthController extends BaseController
@@ -15,41 +17,60 @@ class AuthController extends BaseController
         $this->userService = $userService;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW REGISTER PAGE
+    |--------------------------------------------------------------------------
+    */
     public function showRegister(): void
     {
         require BASE_PATH . '/view/auth/register.php';
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | REGISTER
+    |--------------------------------------------------------------------------
+    */
     public function register(): void
     {
-        $data = [
-            'username'         => trim($_POST['username'] ?? ''),
-            'email'            => trim($_POST['email'] ?? ''),
-            'password'         => trim($_POST['password'] ?? ''),
-            'confirm_password' => trim($_POST['confirm_password'] ?? ''),
-        ];
+        try {
 
-        $result = $this->userService->register($data);
+            $data = [
+                'username' => trim($_POST['username'] ?? ''),
+                'email' => trim($_POST['email'] ?? ''),
+                'password' => trim($_POST['password'] ?? ''),
+                'confirm_password' => trim($_POST['confirm_password'] ?? ''),
+            ];
 
-        if (!$result['success']) {
-            $this->withErrors(
-                $result['errors'],
-                $data,
-                BASE_URL . '/Public/index.php?page=register'
+            // register user
+            $this->userService->register($data);
+
+            // SUCCESS FLOW (IMPORTANT FIX)
+            $this->withSuccess(
+                'Registration successful',
+                BASE_URL . '/Public/index.php?page=login'
             );
+        } catch (\Throwable $e) {
+            ExceptionHandler::handle($e);
         }
-
-        $this->withSuccess(
-            'Registration successful',
-            BASE_URL . '/Public/index.php?page=login'
-        );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW LOGIN PAGE
+    |--------------------------------------------------------------------------
+    */
     public function showLogin(): void
     {
         require BASE_PATH . '/view/auth/login.php';
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | LOGIN
+    |--------------------------------------------------------------------------
+    */
     public function login(): void
     {
         $data = [
@@ -57,24 +78,28 @@ class AuthController extends BaseController
             'password' => trim($_POST['password'] ?? '')
         ];
 
-        $result = $this->userService->login($data);
-
-        if (!$result['success']) {
-            $this->withErrors(
-                $result['errors'],
-                $data,
-                BASE_URL . '/Public/index.php?page=login'
-            );
-        }
-
-        $this->loginUser($result['data']);
+        /** @var UserDTO $user */
+        $user = $this->userService->login($data);
+        // var_dump($user);
+        // die;
+        // store session (using your existing naming style)
+        $_SESSION['userid']   = $user->userid;
+        $_SESSION['username'] = $user->username;
 
         $this->redirect(BASE_URL . '/Public/index.php?page=home');
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | LOGOUT
+    |--------------------------------------------------------------------------
+    */
     public function logout(): void
     {
         session_destroy();
-        $this->redirect(BASE_URL . '/Public/index.php?page=login');
+
+        $this->redirect(
+            BASE_URL . '/Public/index.php?page=login'
+        );
     }
 }

@@ -9,8 +9,13 @@ use App\Interfaces\UserRepositoryInterface;
 use App\Validation\Validator;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
-use App\Http\Response\ApiResponse;
+
+use App\DTO\UserDTO;
 use App\Mappers\UserMapper;
+
+use App\Exceptions\ValidationException;
+use App\Exceptions\AuthenticationException;
+use App\Exceptions\DatabaseException;
 
 class UserService extends BaseService
 {
@@ -30,54 +35,38 @@ class UserService extends BaseService
     | REGISTER USER
     |--------------------------------------------------------------------------
     */
-    public function register(array $data): array
+    public function register(array $data): bool
     {
-        /*
-        | Validation
-        */
+        // Validation
         if (!$this->validator->validate($data, RegisterRequest::rules())) {
-            return ApiResponse::error(
-                $this->validator->errors(),
-                'Validation failed'
+            throw new ValidationException(
+                $this->validator->errors()
             );
         }
 
-        /*
-        | Check email exists
-        */
+        // Duplicate email check
         if ($this->userRepo->findByEmail($data['email'])) {
-            return ApiResponse::error(
-                ['email' => 'Email already exists'],
-                'Duplicate email'
-            );
+            throw new ValidationException([
+                'email' => 'Email already exists'
+            ]);
         }
 
-        /*
-        | Create User Entity
-        */
+        // Create user
         $user = new User(
             $data['username'],
             $data['email'],
             password_hash($data['password'], PASSWORD_DEFAULT)
         );
 
-        /*
-        | Save user
-        */
-        if (!$this->userRepo->create($user->toArray())) {
-            return ApiResponse::error(
-                ['general' => 'Registration failed'],
-                'Database error'
-            );
+        // Save user
+        $created = $this->userRepo->create($user->toArray());
+
+        if (!$created) {
+            throw new DatabaseException('Failed to create user');
         }
 
-        /*
-        | Success response (NO USER RETURNED FOR SECURITY)
-        */
-        return ApiResponse::success(
-            null,
-            'User registered successfully'
-        );
+        // SUCCESS
+        return true;
     }
 
     /*
@@ -85,51 +74,32 @@ class UserService extends BaseService
     | LOGIN USER
     |--------------------------------------------------------------------------
     */
-    public function login(array $data): array
+    public function login(array $data): UserDTO
     {
-        /*
-        | Validation
-        */
+        // Validation
         if (!$this->validator->validate($data, LoginRequest::rules())) {
-            return ApiResponse::error(
-                $this->validator->errors(),
-                'Validation failed'
+            throw new ValidationException(
+                $this->validator->errors()
             );
         }
 
-        /*
-        | Find user
-        */
+        // Find user
         $user = $this->userRepo->findByEmail($data['email']);
 
         if (!$user) {
-            return ApiResponse::error(
-                ['email' => 'Email not found'],
-                'Authentication failed'
+            throw new AuthenticationException(
+                'Invalid email or password'
             );
         }
 
-        /*
-        | Verify password
-        */
+        // Verify password
         if (!password_verify($data['password'], $user->getPassword())) {
-            return ApiResponse::error(
-                ['password' => 'Incorrect password'],
-                'Authentication failed'
+            throw new AuthenticationException(
+                'Invalid email or password'
             );
         }
 
-        /*
-        | Convert Model → DTO
-        */
-        $userDTO = UserMapper::toDTO($user);
-
-        /*
-        | Success response (SAFE DTO ONLY)
-        */
-        return ApiResponse::success(
-            $userDTO,
-            'Login successful'
-        );
+        // Return DTO
+        return UserMapper::toDTO($user);
     }
 }
