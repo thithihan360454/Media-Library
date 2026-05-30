@@ -4,31 +4,54 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Interfaces\UserRepositoryInterface;
-use App\Mappers\UserMapper;
+use PDO;
+
 use App\Models\User;
+
+use App\Mappers\UserMapper;
+
+use App\Interfaces\UserRepositoryInterface;
 
 class UserRepository extends BaseRepository implements UserRepositoryInterface
 {
-    protected string $spGetAll = 'sp_get_users';
-    protected string $spGetById = 'sp_get_user_by_id';
-    protected string $spCreate = 'sp_create_user';
-    protected string $spUpdate = 'sp_update_user';
-    protected string $spDelete = 'sp_delete_user';
+    /*
+    |--------------------------------------------------------------------------
+    | STORED PROCEDURES
+    |--------------------------------------------------------------------------
+    */
+    protected string $spGetAll      = 'sp_get_users';
+
+    protected string $spGetById     = 'sp_get_user_by_id';
+
+    protected string $spCreate      = 'sp_create_user';
+
+    protected string $spUpdate      = 'sp_update_user';
+
+    protected string $spDelete      = 'sp_delete_user';
+
+    protected string $spFindByEmail = 'sp_find_user_by_email';
 
     /*
     |--------------------------------------------------------------------------
-    | FIND BY EMAIL (SP VERSION)
+    | FIND USER BY EMAIL
     |--------------------------------------------------------------------------
     */
     public function findByEmail(string $email): ?User
     {
-        $stmt = $this->db->prepare("CALL sp_find_user_by_email(?)");
+        $stmt = $this->db->prepare(
+            "CALL {$this->spFindByEmail}(?)"
+        );
+
         $stmt->execute([$email]);
 
-        $data = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+
         $stmt->closeCursor();
 
-        return $data ? UserMapper::fromArray($data) : null;
+        if (!$data) {
+            return null;
+        }
+
+        return UserMapper::fromArray($data);
     }
 }

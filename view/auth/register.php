@@ -40,7 +40,7 @@ unset($_SESSION['errors'], $_SESSION['old'], $_SESSION['error'], $_SESSION['succ
                 <!-- USERNAME -->
                 <div class="auth-group">
                     <label>Username</label>
-                    <input type="text" name="username"
+                    <input type="text" name="username" placeholder="Enter a username"
                         value="<?= htmlspecialchars($old['username'] ?? '') ?>">
 
                     <?php if (!empty($errors['username'])): ?>
@@ -51,7 +51,7 @@ unset($_SESSION['errors'], $_SESSION['old'], $_SESSION['error'], $_SESSION['succ
                 <!-- EMAIL -->
                 <div class="auth-group">
                     <label>Email</label>
-                    <input type="text" name="email"
+                    <input type="text" name="email" placeholder="Enter your email"
                         value="<?= htmlspecialchars($old['email'] ?? '') ?>">
 
                     <?php if (!empty($errors['email'])): ?>
@@ -64,7 +64,7 @@ unset($_SESSION['errors'], $_SESSION['old'], $_SESSION['error'], $_SESSION['succ
                     <label>Password</label>
 
                     <div class="input-wrapper">
-                        <input type="password" name="password" id="password">
+                        <input type="password" name="password" id="password" placeholder="Enter a password">
                         <span class="toggle-password" data-target="password">👁</span>
                     </div>
 
@@ -78,7 +78,7 @@ unset($_SESSION['errors'], $_SESSION['old'], $_SESSION['error'], $_SESSION['succ
                     <label>Confirm Password</label>
 
                     <div class="input-wrapper">
-                        <input type="password" name="confirm_password" id="confirm_password">
+                        <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm your password">
                         <span class="toggle-password" data-target="confirm_password">👁</span>
                     </div>
 

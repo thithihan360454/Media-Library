@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Core\ExceptionHandler;
 use App\DTO\UserDTO;
+use App\Mappers\UserMapper;
 use App\Services\UserService;
+
+use App\Exceptions\ValidationException;
+use App\Exceptions\AuthenticationException;
 
 class AuthController extends BaseController
 {
@@ -14,6 +17,7 @@ class AuthController extends BaseController
 
     public function __construct(UserService $userService)
     {
+        parent::__construct();
         $this->userService = $userService;
     }
 
@@ -29,30 +33,33 @@ class AuthController extends BaseController
 
     /*
     |--------------------------------------------------------------------------
-    | REGISTER
+    | REGISTER USER
     |--------------------------------------------------------------------------
     */
     public function register(): void
     {
+        $data = $this->post();
+
         try {
 
-            $data = [
-                'username' => trim($_POST['username'] ?? ''),
-                'email' => trim($_POST['email'] ?? ''),
-                'password' => trim($_POST['password'] ?? ''),
-                'confirm_password' => trim($_POST['confirm_password'] ?? ''),
-            ];
+            $dto = UserMapper::toRegisterDTO($data);
 
-            // register user
-            $this->userService->register($data);
+            $this->userService->register($dto);
 
-            // SUCCESS FLOW (IMPORTANT FIX)
             $this->withSuccess(
                 'Registration successful',
                 BASE_URL . '/Public/index.php?page=login'
             );
-        } catch (\Throwable $e) {
-            ExceptionHandler::handle($e);
+        } catch (ValidationException $e) {
+
+            $this->withErrors(
+                $e->getErrors(),
+                [
+                    'username' => $data['username'] ?? '',
+                    'email'    => $data['email'] ?? '',
+                ],
+                BASE_URL . '/Public/index.php?page=register'
+            );
         }
     }
 
@@ -68,35 +75,60 @@ class AuthController extends BaseController
 
     /*
     |--------------------------------------------------------------------------
-    | LOGIN
+    | LOGIN USER
     |--------------------------------------------------------------------------
     */
     public function login(): void
     {
-        $data = [
-            'email'    => trim($_POST['email'] ?? ''),
-            'password' => trim($_POST['password'] ?? '')
-        ];
+        $data = $this->post();
 
-        /** @var UserDTO $user */
-        $user = $this->userService->login($data);
-        // var_dump($user);
-        // die;
-        // store session (using your existing naming style)
-        $_SESSION['userid']   = $user->userid;
-        $_SESSION['username'] = $user->username;
+        try {
 
-        $this->redirect(BASE_URL . '/Public/index.php?page=home');
+            $dto = UserMapper::toLoginDTO($data);
+
+            /** @var UserDTO $user */
+            $user = $this->userService->login($dto);
+
+            $this->loginUser($user);
+
+            session_regenerate_id(true);
+
+            $this->redirect(
+                BASE_URL . '/Public/index.php?page=home'
+            );
+        } catch (ValidationException $e) {
+
+            $this->withErrors(
+                $e->getErrors(),
+                [
+                    'email' => $data['email'] ?? '',
+                ],
+                BASE_URL . '/Public/index.php?page=login'
+            );
+        } catch (AuthenticationException $e) {
+
+            $this->withErrors(
+                ['auth' => $e->getMessage()],
+                [
+                    'email' => $data['email'] ?? '',
+                ],
+                BASE_URL . '/Public/index.php?page=login'
+            );
+        }
     }
 
     /*
     |--------------------------------------------------------------------------
-    | LOGOUT
+    | LOGOUT USER
     |--------------------------------------------------------------------------
     */
     public function logout(): void
     {
-        session_destroy();
+        $_SESSION = [];
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
 
         $this->redirect(
             BASE_URL . '/Public/index.php?page=login'

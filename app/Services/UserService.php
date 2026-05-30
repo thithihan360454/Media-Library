@@ -5,20 +5,31 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\User;
-use App\Interfaces\UserRepositoryInterface;
-use App\Validation\Validator;
-use App\Http\Requests\RegisterRequest;
-use App\Http\Requests\LoginRequest;
 
 use App\DTO\UserDTO;
+use App\DTO\LoginUserDTO;
+use App\DTO\RegisterUserDTO;
+
 use App\Mappers\UserMapper;
 
+use App\Validation\Validator;
+
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
+
+use App\Interfaces\UserRepositoryInterface;
+
 use App\Exceptions\ValidationException;
-use App\Exceptions\AuthenticationException;
 use App\Exceptions\DatabaseException;
+use App\Exceptions\AuthenticationException;
 
 class UserService extends BaseService
 {
+    /*
+    |--------------------------------------------------------------------------
+    | DEPENDENCIES
+    |--------------------------------------------------------------------------
+    */
     private UserRepositoryInterface $userRepo;
     private Validator $validator;
 
@@ -35,37 +46,58 @@ class UserService extends BaseService
     | REGISTER USER
     |--------------------------------------------------------------------------
     */
-    public function register(array $data): bool
+    public function register(RegisterUserDTO $dto): bool
     {
-        // Validation
+        // convert DTO → array for validation
+        $data = [
+            'username'         => $dto->username,
+            'email'            => $dto->email,
+            'password'         => $dto->password,
+            'confirm_password' => $dto->confirmPassword,
+        ];
+
+        /*
+        |--------------------------------------------------------------
+        | VALIDATION
+        |--------------------------------------------------------------
+        */
         if (!$this->validator->validate($data, RegisterRequest::rules())) {
-            throw new ValidationException(
-                $this->validator->errors()
-            );
+            throw new ValidationException($this->validator->errors());
         }
 
-        // Duplicate email check
-        if ($this->userRepo->findByEmail($data['email'])) {
+        /*
+        |--------------------------------------------------------------
+        | DUPLICATE EMAIL CHECK
+        |--------------------------------------------------------------
+        */
+        if ($this->userRepo->findByEmail($dto->email)) {
             throw new ValidationException([
                 'email' => 'Email already exists'
             ]);
         }
 
-        // Create user
+        /*
+        |--------------------------------------------------------------
+        | CREATE USER ENTITY
+        |--------------------------------------------------------------
+        */
         $user = new User(
-            $data['username'],
-            $data['email'],
-            password_hash($data['password'], PASSWORD_DEFAULT)
+            $dto->username,
+            $dto->email,
+            password_hash($dto->password, PASSWORD_DEFAULT)
         );
 
-        // Save user
+        /*
+        |--------------------------------------------------------------
+        | SAVE TO DATABASE
+        |--------------------------------------------------------------
+        */
         $created = $this->userRepo->create($user->toArray());
 
         if (!$created) {
             throw new DatabaseException('Failed to create user');
         }
 
-        // SUCCESS
         return true;
     }
 
@@ -74,32 +106,48 @@ class UserService extends BaseService
     | LOGIN USER
     |--------------------------------------------------------------------------
     */
-    public function login(array $data): UserDTO
+    public function login(LoginUserDTO $dto): UserDTO
     {
-        // Validation
+        // convert DTO → array for validation
+        $data = [
+            'email'    => $dto->email,
+            'password' => $dto->password,
+        ];
+
+        /*
+        |--------------------------------------------------------------
+        | VALIDATION
+        |--------------------------------------------------------------
+        */
         if (!$this->validator->validate($data, LoginRequest::rules())) {
-            throw new ValidationException(
-                $this->validator->errors()
-            );
+            throw new ValidationException($this->validator->errors());
         }
 
-        // Find user
-        $user = $this->userRepo->findByEmail($data['email']);
+        /*
+        |--------------------------------------------------------------
+        | FIND USER
+        |--------------------------------------------------------------
+        */
+        $user = $this->userRepo->findByEmail($dto->email);
 
         if (!$user) {
-            throw new AuthenticationException(
-                'Invalid email or password'
-            );
+            throw new AuthenticationException('Invalid email or password');
         }
 
-        // Verify password
-        if (!password_verify($data['password'], $user->getPassword())) {
-            throw new AuthenticationException(
-                'Invalid email or password'
-            );
+        /*
+        |--------------------------------------------------------------
+        | PASSWORD CHECK
+        |--------------------------------------------------------------
+        */
+        if (!password_verify($dto->password, $user->getPassword())) {
+            throw new AuthenticationException('Invalid email or password');
         }
 
-        // Return DTO
+        /*
+        |--------------------------------------------------------------
+        | RETURN SAFE DTO
+        |--------------------------------------------------------------
+        */
         return UserMapper::toDTO($user);
     }
 }

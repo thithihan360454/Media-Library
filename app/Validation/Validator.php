@@ -6,9 +6,6 @@ class Validator
 {
     private array $errors = [];
 
-    /**
-     * Validate data
-     */
     public function validate(array $data, array $rules): bool
     {
         $this->errors = [];
@@ -16,10 +13,6 @@ class Validator
         foreach ($rules as $field => $fieldRules) {
 
             $value = trim($data[$field] ?? '');
-
-            // if (is_string($value)) {
-            //     $value = trim($value);
-            // }
 
             foreach ($fieldRules as $rule) {
 
@@ -31,8 +24,7 @@ class Validator
                 if ($rule === 'required') {
 
                     if ($value === '') {
-                        $this->errors[$field] =
-                            ucfirst($field) . ' is required';
+                        $this->addError($field, ucfirst($field) . ' is required');
                         break;
                     }
                 }
@@ -41,11 +33,10 @@ class Validator
                 |--------------------------------------------------------------------------
                 | EMAIL
                 |--------------------------------------------------------------------------
-                */
-                if ($rule === 'email' && $value !== '') {
+                */ elseif ($rule === 'email') {
 
-                    if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                        $this->errors[$field] = 'Invalid email format';
+                    if ($value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                        $this->addError($field, 'Invalid email format');
                         break;
                     }
                 }
@@ -54,14 +45,12 @@ class Validator
                 |--------------------------------------------------------------------------
                 | MIN LENGTH
                 |--------------------------------------------------------------------------
-                */
-                if (str_starts_with($rule, 'min:')) {
+                */ elseif (str_starts_with($rule, 'min:')) {
 
                     $min = (int) explode(':', $rule)[1];
 
                     if (strlen($value) < $min) {
-                        $this->errors[$field] =
-                            ucfirst($field) . " must be at least {$min} characters";
+                        $this->addError($field, ucfirst($field) . " must be at least {$min} characters");
                         break;
                     }
                 }
@@ -70,14 +59,12 @@ class Validator
                 |--------------------------------------------------------------------------
                 | MAX LENGTH
                 |--------------------------------------------------------------------------
-                */
-                if (str_starts_with($rule, 'max:')) {
+                */ elseif (str_starts_with($rule, 'max:')) {
 
                     $max = (int) explode(':', $rule)[1];
 
                     if (strlen($value) > $max) {
-                        $this->errors[$field] =
-                            ucfirst($field) . " must not exceed {$max} characters";
+                        $this->addError($field, ucfirst($field) . " must not exceed {$max} characters");
                         break;
                     }
                 }
@@ -86,8 +73,11 @@ class Validator
                 |--------------------------------------------------------------------------
                 | PASSWORD STRENGTH
                 |--------------------------------------------------------------------------
-                */
-                if ($rule === 'password_strength' && $value !== '') {
+                */ elseif ($rule === 'password_strength') {
+
+                    if ($value === '') {
+                        break;
+                    }
 
                     $hasUppercase = preg_match('/[A-Z]/', $value);
                     $hasLowercase = preg_match('/[a-z]/', $value);
@@ -95,29 +85,27 @@ class Validator
                     $hasSpecial   = preg_match('/[\W_]/', $value);
 
                     if (!$hasUppercase || !$hasLowercase || !$hasNumber || !$hasSpecial) {
-                        $this->errors[$field] =
-                            'Password must contain uppercase, lowercase, number and special character';
+                        $this->addError(
+                            $field,
+                            'Password must contain uppercase, lowercase, number and special character'
+                        );
                         break;
                     }
                 }
 
                 /*
                 |--------------------------------------------------------------------------
-                | SAME FIELD VALIDATION (CONFIRM PASSWORD)
+                | SAME FIELD VALIDATION
                 |--------------------------------------------------------------------------
-                | usage: same:password
-                |--------------------------------------------------------------------------
-                */
-                if (str_starts_with($rule, 'same:')) {
+                */ elseif (str_starts_with($rule, 'same:')) {
 
                     $otherField = explode(':', $rule)[1] ?? null;
 
                     if (
                         $otherField &&
-                        ($data[$field] ?? '') !== ($data[$otherField] ?? '')
+                        $value !== trim($data[$otherField] ?? '')
                     ) {
-                        $this->errors[$field] =
-                            ucfirst($field) . " does not match";
+                        $this->addError($field, ucfirst($field) . " does not match");
                         break;
                     }
                 }
@@ -127,9 +115,11 @@ class Validator
         return empty($this->errors);
     }
 
-    /**
-     * Get errors
-     */
+    private function addError(string $field, string $message): void
+    {
+        $this->errors[$field] = $message;
+    }
+
     public function errors(): array
     {
         return $this->errors;

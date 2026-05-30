@@ -43,7 +43,7 @@ unset($_SESSION['errors'], $_SESSION['old']);
                 <!-- EMAIL -->
                 <div class="auth-group">
                     <label>Email</label>
-                    <input type="text" name="email"
+                    <input type="text" name="email" placeholder="Enter your email"
                         value="<?= htmlspecialchars($old['email'] ?? '') ?>">
 
                     <?php if (!empty($errors['email'])): ?>
@@ -56,7 +56,7 @@ unset($_SESSION['errors'], $_SESSION['old']);
                     <label>Password</label>
 
                     <div class="input-wrapper">
-                        <input type="password" name="password" id="login_password">
+                        <input type="password" name="password" id="login_password" placeholder="Enter your password">
 
                         <span class="toggle-password" data-target="login_password">👁</span>
                     </div>

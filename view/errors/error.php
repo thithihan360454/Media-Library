@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Error</title>
+    <title><?= $_SESSION['error_status']['code'] ?? 500 ?> - <?= $_SESSION['error_status']['title'] ?? 'Error' ?></title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,6 +26,12 @@
             color: #d9534f;
         }
 
+        .code {
+            font-size: 50px;
+            font-weight: bold;
+            color: #333;
+        }
+
         .debug {
             text-align: left;
             margin-top: 20px;
@@ -40,7 +47,15 @@
 <body>
 
     <div class="box">
-        <h1>Something Went Wrong</h1>
+
+        <div class="code">
+            <?= $_SESSION['error_status']['code'] ?? 500 ?>
+        </div>
+
+        <h1>
+            <?= $_SESSION['error_status']['title'] ?? 'Something Went Wrong' ?>
+        </h1>
+
         <p>Please try again later or contact support.</p>
 
         <?php if (!empty($_ENV['APP_DEBUG']) && $_ENV['APP_DEBUG'] === 'true'): ?>
@@ -55,6 +70,7 @@
                 <?php endif; ?>
             </div>
         <?php endif; ?>
+
     </div>
 
 </body>

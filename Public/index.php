@@ -295,10 +295,5 @@ switch ($page) {
     |--------------------------------------------------------------------------
     */
     default:
-
-        http_response_code(404);
-
-        throw new \App\Exceptions\NotFoundException(
-            'Page not found'
-        );
+        throw new \App\Exceptions\NotFoundException('Page not found');
 }
